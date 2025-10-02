@@ -1,24 +1,234 @@
-import { useState } from 'react'
-import { dispatchUnit, predictSeverity } from '../services/aiDispatch'
+import { useState, useEffect } from 'react'
+import { getDatabase, ref, get } from 'firebase/database'
+import { app } from '../firebase'
+import './ViewReport.css'
 
-function ViewReport() {
-  const reportData = {
-    reportId: "RPT-2024-001",
-    type: "Theft",
-    dateReported: "2024-01-15",
-    location: "123 Main St, Downtown, City",
-    reportedBy: {
-      name: "John Smith",
-      phone: "+1 (555) 123-4567",
-      email: "john.smith@email.com"
-    },
-    description: "Vehicle break-in reported in downtown area. The suspect broke into a parked car and stole personal belongings including a laptop and wallet. The incident occurred between 2:00 AM and 4:00 AM. Security camera footage shows a male suspect wearing dark clothing.",
-    status: "Under Review"
-  };
-
-  const [dispatchResult, setDispatchResult] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+function ViewReport({ reportId }) {
+  const [reportData, setReportData] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [dispatchResult] = useState(null)
+  const [aiRecommendations, setAiRecommendations] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  // Generate AI recommendations using Gemini API
+  const generateAIRecommendations = async (crimeType, description) => {
+    try {
+      setAiLoading(true)
+      
+      // Enhanced prompt that analyzes both crime type and description
+      const prompt = `As an emergency response AI assistant, analyze this crime report in detail and provide 3 specific recommendations for the admin:
+
+CRIME TYPE: ${crimeType}
+INCIDENT DESCRIPTION: ${description}
+
+Please analyze the description carefully and consider:
+- Severity and urgency of the incident
+- Specific details mentioned (weapons, injuries, suspects, etc.)
+- Location context and potential risks
+- Evidence mentioned or available
+- Witnesses or victims involved
+
+Provide exactly 3 recommendations in this JSON format:
+{
+  "recommendations": [
+    {
+      "type": "Priority",
+      "score": 85,
+      "title": "Specific Priority Action",
+      "description": "Detailed recommendation based on the specific incident details and urgency level"
+    },
+    {
+      "type": "Investigation", 
+      "score": 75,
+      "title": "Investigation Strategy",
+      "description": "Specific investigation steps based on the evidence and details mentioned in the description"
+    },
+    {
+      "type": "Follow-up",
+      "score": 65,
+      "title": "Follow-up Protocol", 
+      "description": "Follow-up actions tailored to the specific incident and parties involved"
+    }
+  ]
+}
+
+Focus on practical admin actions that address the specific details mentioned in the description.`
+
+      console.log('Sending AI request with prompt:', prompt)
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyC9EZicsv9_W5JVVgHisolse3bXIn5OPf4`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      })
+
+      console.log('AI API Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('AI API Error Response:', errorText)
+        throw new Error(`AI API Error: ${response.status} - ${errorText}`)
+      }
+
+      const data = await response.json()
+      console.log('AI API Response data:', data)
+      
+      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+        const aiResponse = data.candidates[0].content.parts[0].text
+        console.log('AI Response text:', aiResponse)
+        
+        // Try to extract JSON from the response
+        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const recommendations = JSON.parse(jsonMatch[0])
+          console.log('Parsed recommendations:', recommendations)
+          setAiRecommendations(recommendations.recommendations)
+        } else {
+          console.error('No JSON found in AI response:', aiResponse)
+          throw new Error('Invalid AI response format - no JSON found')
+        }
+      } else {
+        console.error('Invalid AI response structure:', data)
+        throw new Error('No valid response from AI - invalid structure')
+      }
+    } catch (error) {
+      console.error('Error generating AI recommendations:', error)
+      
+      // Enhanced fallback that analyzes description content
+      console.log('Using fallback recommendations due to API error')
+      
+      // Analyze description for key details
+      const descriptionLower = description.toLowerCase()
+      const hasWeapon = descriptionLower.includes('weapon') || descriptionLower.includes('gun') || descriptionLower.includes('knife') || descriptionLower.includes('bat') || descriptionLower.includes('blade')
+      const hasInjury = descriptionLower.includes('injured') || descriptionLower.includes('hurt') || descriptionLower.includes('wound') || descriptionLower.includes('bleeding') || descriptionLower.includes('hospital')
+      const hasSuspect = descriptionLower.includes('suspect') || descriptionLower.includes('person') || descriptionLower.includes('man') || descriptionLower.includes('woman') || descriptionLower.includes('individual')
+      const hasVictim = descriptionLower.includes('victim') || descriptionLower.includes('child') || descriptionLower.includes('kid') || descriptionLower.includes('person')
+      const isUrgent = hasWeapon || hasInjury || descriptionLower.includes('emergency') || descriptionLower.includes('urgent')
+      
+      // Generate description-aware recommendations
+      const priorityScore = isUrgent ? 95 : 85
+      const investigationScore = hasSuspect ? 90 : 75
+      const followupScore = hasVictim ? 85 : 70
+      
+      setAiRecommendations([
+        {
+          type: "Priority",
+          score: priorityScore,
+          title: isUrgent ? "High Priority Response Required" : "Standard Response Required",
+          description: `Based on the ${crimeType} incident${hasWeapon ? ' involving weapons' : ''}${hasInjury ? ' with reported injuries' : ''}, ${isUrgent ? 'dispatch emergency units immediately' : 'dispatch appropriate units'} and secure the scene.`
+        },
+        {
+          type: "Investigation",
+          score: investigationScore,
+          title: hasSuspect ? "Suspect Investigation Priority" : "Evidence Collection",
+          description: `${hasSuspect ? 'Focus on suspect identification and apprehension. ' : ''}Gather evidence related to the ${crimeType} incident${hasVictim ? ' and ensure victim safety' : ''}. Interview witnesses and document all findings.`
+        },
+        {
+          type: "Follow-up",
+          score: followupScore,
+          title: hasVictim ? "Victim Support & Documentation" : "Administrative Review",
+          description: `${hasVictim ? 'Provide victim support services and ensure proper medical attention if needed. ' : ''}Complete comprehensive documentation of the ${crimeType} incident and follow up with the reporting individual.`
+        }
+      ])
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // Fetch report data from Firebase
+  useEffect(() => {
+    const fetchReportData = async () => {
+      if (!reportId) {
+        setError('No report ID provided')
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const db = getDatabase(app)
+        const reportRef = ref(db, `civilian/civilian crime reports/${reportId}`)
+        const snapshot = await get(reportRef)
+        
+        if (snapshot.exists()) {
+          const data = snapshot.val()
+          
+          // Fetch reporter information from civilian account
+          let reporterInfo = {
+            name: 'Anonymous',
+            phone: 'Not provided',
+            email: 'Not provided'
+          }
+          
+          if (data.reporterUid) {
+            try {
+              const reporterRef = ref(db, `civilian/civilian account/${data.reporterUid}`)
+              const reporterSnapshot = await get(reporterRef)
+              
+              if (reporterSnapshot.exists()) {
+                const reporterData = reporterSnapshot.val()
+                reporterInfo = {
+                  name: `${reporterData.firstName || ''} ${reporterData.lastName || ''}`.trim() || 'Anonymous',
+                  phone: reporterData.contactNumber || 'Not provided',
+                  email: reporterData.email || 'Not provided'
+                }
+              }
+            } catch (reporterErr) {
+              console.error('Error fetching reporter info:', reporterErr)
+              // Keep default values if reporter fetch fails
+            }
+          }
+          
+          // Debug multimedia data
+          console.log('Multimedia data:', data.multimedia)
+          
+          setReportData({
+            reportId: data.reportId || reportId,
+            type: data.crimeType || 'Unknown',
+            dateReported: data.dateTime || data.createdAt,
+            location: data.location?.address || 'No location provided',
+            coordinates: {
+              latitude: data.location?.latitude || null,
+              longitude: data.location?.longitude || null
+            },
+            reportedBy: reporterInfo,
+            description: data.description || 'No description provided',
+            status: data.status || 'Unknown',
+            multimedia: data.multimedia || []
+          })
+
+          // Generate AI recommendations based on crime type and description
+          const crimeType = data.crimeType || 'Unknown'
+          const description = data.description || 'No description provided'
+          generateAIRecommendations(crimeType, description)
+        } else {
+          setError('Report not found')
+        }
+      } catch (err) {
+        console.error('Error fetching report:', err)
+        setError('Failed to load report data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchReportData()
+  }, [reportId])
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -30,34 +240,43 @@ function ViewReport() {
     });
   };
 
-  const handleDispatch = async () => {
-    setIsLoading(true)
-    setError('')
-    setDispatchResult(null)
-    try {
-      const inferred = await predictSeverity(reportData.type)
-      // sample coordinates for demo; replace with actual report coords
-      const latitude = 14.5995
-      const longitude = 120.9842
-      const res = await dispatchUnit({
-        crimeType: reportData.type,
-        latitude,
-        longitude,
-        severity: inferred?.severity
-      })
-      setDispatchResult(res)
-    } catch (e) {
-      setError(e.message || 'Dispatch failed')
-    } finally {
-      setIsLoading(false)
-    }
+  // AI dispatch removed; no action buttons rendered.
+
+  if (loading) {
+    return (
+      <div className="page-content">
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <h2>Loading report...</h2>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="page-content">
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <h2>Error</h2>
+          <p style={{ color: 'red' }}>{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!reportData) {
+    return (
+      <div className="page-content">
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <h2>No report data available</h2>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="page-content">
       <div className="report-header">
         <h1>View Report</h1>
-        <div className="report-id">Report ID: {reportData.reportId}</div>
       </div>
       
       <div className="report-layout">
@@ -111,54 +330,129 @@ function ViewReport() {
 
           <div className="report-section">
             <h2>Location Map</h2>
-            <div className="map-placeholder">
-              <div className="map-content">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <p>Map showing report location</p>
-                <small>123 Main St, Downtown, City</small>
-              </div>
+            <div className="map-container">
+              {reportData.coordinates.latitude && reportData.coordinates.longitude ? (
+                <div className="map-content">
+                  <iframe
+                    width="100%"
+                    height="300"
+                    style={{ border: 0, borderRadius: '8px' }}
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${reportData.coordinates.longitude-0.01},${reportData.coordinates.latitude-0.01},${reportData.coordinates.longitude+0.01},${reportData.coordinates.latitude+0.01}&layer=mapnik&marker=${reportData.coordinates.latitude},${reportData.coordinates.longitude}`}
+                    allowFullScreen
+                    title="Report Location Map"
+                  ></iframe>
+                  <div className="map-info">
+                    <p><strong>Coordinates:</strong> {reportData.coordinates.latitude}, {reportData.coordinates.longitude}</p>
+                    <p><strong>Address:</strong> {reportData.location}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="map-placeholder">
+                  <div className="map-content">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <p>Location coordinates not available</p>
+                    <small>{reportData.location}</small>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="report-section">
             <h2>Evidence Photos</h2>
             <div className="evidence-grid">
-              <div className="evidence-placeholder">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                  <polyline points="21,15 16,10 5,21"></polyline>
-                </svg>
-                <span>Photo 1</span>
-              </div>
-              <div className="evidence-placeholder">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                  <polyline points="21,15 16,10 5,21"></polyline>
-                </svg>
-                <span>Photo 2</span>
-              </div>
-              <div className="evidence-placeholder">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                  <polyline points="21,15 16,10 5,21"></polyline>
-                </svg>
-                <span>Photo 3</span>
-              </div>
+              {reportData.multimedia && reportData.multimedia.length > 0 ? (
+                reportData.multimedia.map((media, index) => {
+                  console.log(`Media ${index}:`, media)
+                  return (
+                  <div key={index} className="evidence-item">
+                    {media.includes('file://') ? (
+                      <div className="evidence-placeholder">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                          <polyline points="21,15 16,10 5,21"></polyline>
+                        </svg>
+                        <span>Photo {index + 1}</span>
+                        <small>Mobile app file</small>
+                        <div className="file-info">
+                          <small>Path: {media.split('/').pop()}</small>
+                        </div>
+                      </div>
+                    ) : media.startsWith('data:image/') ? (
+                      <div className="evidence-photo">
+                        <img 
+                          src={media} 
+                          alt={`Evidence photo ${index + 1}`}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="evidence-placeholder" style={{ display: 'none' }}>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21,15 16,10 5,21"></polyline>
+                          </svg>
+                          <span>Photo {index + 1}</span>
+                          <small>Failed to load</small>
+                        </div>
+                      </div>
+                    ) : media.includes('firebase') || media.includes('http') ? (
+                      <div className="evidence-photo">
+                        <img 
+                          src={media} 
+                          alt={`Evidence photo ${index + 1}`}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="evidence-placeholder" style={{ display: 'none' }}>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21,15 16,10 5,21"></polyline>
+                          </svg>
+                          <span>Photo {index + 1}</span>
+                          <small>Failed to load</small>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="evidence-placeholder">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                          <polyline points="21,15 16,10 5,21"></polyline>
+                        </svg>
+                        <span>Photo {index + 1}</span>
+                        <small>Unknown format</small>
+                        <div className="file-info">
+                          <small>{media.substring(0, 50)}...</small>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  )
+                })
+              ) : (
+                <div className="no-evidence">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21,15 16,10 5,21"></polyline>
+                  </svg>
+                  <p>No evidence photos available</p>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="report-actions">
-            <button className="btn-cancel">Cancel</button>
-            <button className="btn-update-report" onClick={handleDispatch} disabled={isLoading}>
-              {isLoading ? 'Dispatching…' : 'AI Dispatch Unit'}
-            </button>
-          </div>
+          {/* Action buttons removed as requested */}
           {error && (
             <div className="report-section" style={{ marginTop: '1rem', borderLeft: '4px solid #ef4444' }}>
               <p style={{ color: '#b91c1c', margin: 0 }}>Error: {error}</p>
@@ -176,34 +470,42 @@ function ViewReport() {
 
         <div className="ai-recommendations">
           <h2>AI Response Recommendations</h2>
-          <div className="recommendations-list">
-            <div className="recommendation-card">
-              <div className="recommendation-header">
-                <span className="recommendation-type">Priority</span>
-                <span className="recommendation-score">95%</span>
+          {aiLoading ? (
+            <div className="recommendations-list">
+              <div className="recommendation-card">
+                <div className="recommendation-header">
+                  <span className="recommendation-type">Loading...</span>
+                  <span className="recommendation-score">--%</span>
+                </div>
+                <h3>Generating AI Analysis...</h3>
+                <p>Please wait while AI analyzes the crime report and generates recommendations.</p>
               </div>
-              <h3>Immediate Response Required</h3>
-              <p>This theft incident involves personal property and should be prioritized for immediate investigation. Recommend dispatching patrol unit within 30 minutes.</p>
             </div>
-            
-            <div className="recommendation-card">
-              <div className="recommendation-header">
-                <span className="recommendation-type">Investigation</span>
-                <span className="recommendation-score">87%</span>
+          ) : aiRecommendations ? (
+            <div className="recommendations-list">
+              {aiRecommendations.map((rec, index) => (
+                <div key={index} className="recommendation-card">
+                  <div className="recommendation-header">
+                    <span className="recommendation-type">{rec.type}</span>
+                    <span className="recommendation-score">{rec.score}%</span>
+                  </div>
+                  <h3>{rec.title}</h3>
+                  <p>{rec.description}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="recommendations-list">
+              <div className="recommendation-card">
+                <div className="recommendation-header">
+                  <span className="recommendation-type">Error</span>
+                  <span className="recommendation-score">--%</span>
+                </div>
+                <h3>Unable to Generate Recommendations</h3>
+                <p>There was an error generating AI recommendations. Please try refreshing the page.</p>
               </div>
-              <h3>Evidence Collection Strategy</h3>
-              <p>Security camera footage mentioned in description. Recommend collecting and analyzing CCTV recordings from nearby businesses for suspect identification.</p>
             </div>
-            
-            <div className="recommendation-card">
-              <div className="recommendation-header">
-                <span className="recommendation-type">Follow-up</span>
-                <span className="recommendation-score">78%</span>
-              </div>
-              <h3>Witness Interview Protocol</h3>
-              <p>Contact the reporting individual for additional details about the stolen items and any suspicious activity noticed before the incident.</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

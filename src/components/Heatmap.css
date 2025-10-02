@@ -1,0 +1,333 @@
+/* Heatmap Component Styles */
+
+.heatmap-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.heatmap-header {
+  margin-bottom: 2rem;
+}
+
+.heatmap-header h1 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.heatmap-header p {
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.heatmap-content {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.map-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.map-wrapper {
+  position: relative;
+  height: calc(100vh - 300px);
+  min-height: 500px;
+}
+
+.map-container .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.map-legend {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.map-legend h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #000000;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-size: 0.7rem;
+  color: #4a5568;
+  line-height: 1.2;
+}
+
+
+.heatmap-controls {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  height: fit-content;
+}
+
+.control-section {
+  margin-bottom: 1.5rem;
+}
+
+.control-section:last-child {
+  margin-bottom: 0;
+}
+
+.control-section h3 {
+  color: #2d3748;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-group {
+  margin-bottom: 1rem;
+}
+
+.filter-group label {
+  display: block;
+  color: #4a5568;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.filter-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: white;
+  color: #2d3748;
+  transition: border-color 0.2s;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.setting-group {
+  margin-bottom: 1rem;
+}
+
+.setting-group label {
+  display: block;
+  color: #4a5568;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.setting-group input[type="range"] {
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.setting-group small {
+  color: #718096;
+  font-size: 0.75rem;
+  display: block;
+}
+
+.reports-list {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.reports-list h3 {
+  color: #2d3748;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.report-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.report-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.report-info h4 {
+  color: #2d3748;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.report-info p {
+  color: #4a5568;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.report-date {
+  color: #718096;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.report-coords {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.report-coords small {
+  color: #9ca3af;
+  font-size: 0.7rem;
+  font-family: monospace;
+}
+
+.crime-popup {
+  min-width: 200px;
+}
+
+.crime-popup h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2d3748;
+  font-size: 1rem;
+}
+
+.crime-popup p {
+  margin: 0.25rem 0;
+  color: #4a5568;
+  font-size: 0.875rem;
+}
+
+.crime-types {
+  margin-top: 0.5rem;
+}
+
+.crime-types strong {
+  color: #2d3748;
+  font-size: 0.875rem;
+}
+
+.crime-types ul {
+  margin: 0.25rem 0 0 1rem;
+  padding: 0;
+}
+
+.crime-types li {
+  color: #4a5568;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 3rem;
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.error {
+  color: #e53e3e;
+  background: #fed7d7;
+  border-radius: 8px;
+  border: 1px solid #feb2b2;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .heatmap-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .heatmap-controls {
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .heatmap-container {
+    padding: 1rem;
+  }
+  
+  .map-wrapper {
+    height: 400px;
+  }
+  
+  
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .map-legend {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    margin-top: 1rem;
+    width: 100%;
+  }
+  
+}
+
+@media (max-width: 480px) {
+  .map-wrapper {
+    height: 300px;
+  }
+  
+  .heatmap-controls {
+    padding: 1rem;
+  }
+  
+  .reports-list {
+    padding: 1rem;
+  }
+}

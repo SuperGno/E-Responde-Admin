@@ -1,13 +1,43 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import Dashboard from './components/Dashboard.jsx'
 import Analytics from './components/Analytics.jsx'
 import ViewReport from './components/ViewReport.jsx'
+import Heatmap from './components/Heatmap.jsx'
+import Dispatch from './components/Dispatch.jsx'
+import Login from './components/Login.jsx'
+import { auth } from './firebase'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [selectedReportId, setSelectedReportId] = useState(null)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const handleLoginSuccess = () => {
+    // User state will be updated by onAuthStateChanged
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
 
   const handleNavigateToReport = (reportId) => {
+    setSelectedReportId(reportId);
     setCurrentPage('view-report');
   };
 
@@ -18,10 +48,22 @@ function App() {
       case 'analytics':
         return <Analytics />
       case 'view-report':
-        return <ViewReport />
+        return <ViewReport reportId={selectedReportId} />
+      case 'heatmap':
+        return <Heatmap />
+      case 'dispatch':
+        return <Dispatch />
       default:
         return <Dashboard onNavigateToReport={handleNavigateToReport} />
     }
+  }
+
+  if (loading) {
+    return <div className="loading">Loading...</div>
+  }
+
+  if (!user) {
+    return <Login onLoginSuccess={handleLoginSuccess} />
   }
 
   return (
@@ -66,7 +108,31 @@ function App() {
             </svg>
             View Report
           </button>
+          <button 
+            className={`nav-item ${currentPage === 'heatmap' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('heatmap')}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            Heatmap
+          </button>
+          <button 
+            className={`nav-item ${currentPage === 'dispatch' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('dispatch')}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+            </svg>
+            Dispatch
+          </button>
         </nav>
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <button onClick={handleLogout} className="logout-btn">Logout</button>
+          </div>
+        </div>
       </div>
       <main className="main-content">
         {renderPage()}
