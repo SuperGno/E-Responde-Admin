@@ -62,7 +62,7 @@ function Login({ onLoginSuccess }) {
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
             </svg>
           </div>
-          <h1 style={{margin: '0 0 0.5rem 0', color: '#1e293b', fontSize: '1.75rem', fontWeight: '700'}}>E-Responde Admin</h1>
+          <h1 style={{margin: '0 0 0.5rem 0', color: '#f5f5dc', fontSize: '1.75rem', fontWeight: '700'}}>E-Responde Admin</h1>
           <p style={{margin: 0, color: '#64748b', fontSize: '0.95rem'}}>Emergency Response Management System</p>
         </div>
         

@@ -41,15 +41,16 @@
 }
 
 .login-card {
-  background: white !important;
+  background: #1e293b !important;
   padding: 3rem 2.5rem !important;
   border-radius: 16px !important;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4) !important;
   width: 100% !important;
   max-width: 420px !important;
   position: relative !important;
   overflow: hidden !important;
   margin: 0 auto !important;
+  border: 1px solid #334155 !important;
 }
 
 .login-card::before {
@@ -64,7 +65,7 @@
 
 .login-card h1 {
   text-align: center;
-  color: #2d3748;
+  color: #f1f5f9;
   margin-bottom: 0.5rem;
   font-size: 2rem;
   font-weight: 700;
@@ -73,7 +74,7 @@
 
 .login-card h2 {
   text-align: center;
-  color: #718096;
+  color: #94a3b8;
   margin-bottom: 2.5rem;
   font-size: 1.1rem;
   font-weight: 400;
@@ -86,7 +87,7 @@
 .form-group label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #4a5568;
+  color: #e2e8f0;
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -94,26 +95,26 @@
 .form-group input {
   width: 100%;
   padding: 1rem 1.25rem;
-  border: 2px solid #e2e8f0;
+  border: 2px solid #334155;
   border-radius: 12px;
   font-size: 1rem;
   transition: all 0.3s ease;
   box-sizing: border-box;
-  background: #f7fafc;
-  color: #2d3748;
+  background: #334155;
+  color: #f1f5f9;
 }
 
 .form-group input:focus {
   outline: none;
   border-color: #667eea;
-  background: white;
+  background: #475569;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   transform: translateY(-1px);
-  color: #2d3748;
+  color: #f1f5f9;
 }
 
 .form-group input::placeholder {
-  color: #a0aec0;
+  color: #64748b;
 }
 
 .error-message {
@@ -173,6 +174,6 @@
   align-items: center;
   height: 100vh;
   font-size: 1.2rem;
-  color: #666;
+  color: #94a3b8;
 }
 

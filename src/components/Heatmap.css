@@ -11,14 +11,14 @@
 }
 
 .heatmap-header h1 {
-  color: #2d3748;
+  color: #f1f5f9;
   margin-bottom: 0.5rem;
   font-size: 2rem;
   font-weight: 700;
 }
 
 .heatmap-header p {
-  color: #718096;
+  color: #94a3b8;
   font-size: 1.1rem;
 }
 
@@ -30,10 +30,11 @@
 }
 
 .map-container {
-  background: white;
+  background: #1e293b;
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+  border: 1px solid #334155;
 }
 
 .map-wrapper {
@@ -51,11 +52,11 @@
   position: absolute;
   top: 20px;
   right: 20px;
-  background: white;
+  background: #1e293b;
   padding: 0.75rem;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 1px solid #334155;
   z-index: 1000;
   min-width: 120px;
 }
@@ -64,7 +65,7 @@
   margin: 0 0 0.5rem 0;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #000000;
+  color: #f1f5f9;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -86,17 +87,18 @@
 
 .legend-label {
   font-size: 0.7rem;
-  color: #4a5568;
+  color: #e2e8f0;
   line-height: 1.2;
 }
 
 
 .heatmap-controls {
-  background: white;
+  background: #1e293b;
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
   height: fit-content;
+  border: 1px solid #334155;
 }
 
 .control-section {
@@ -108,7 +110,7 @@
 }
 
 .control-section h3 {
-  color: #2d3748;
+  color: #f1f5f9;
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 1rem;
@@ -122,7 +124,7 @@
 
 .filter-group label {
   display: block;
-  color: #4a5568;
+  color: #e2e8f0;
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
@@ -131,11 +133,11 @@
 .filter-group select {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #e2e8f0;
+  border: 2px solid #334155;
   border-radius: 8px;
   font-size: 0.875rem;
-  background: white;
-  color: #2d3748;
+  background: #334155;
+  color: #f1f5f9;
   transition: border-color 0.2s;
 }
 
@@ -150,7 +152,7 @@
 
 .setting-group label {
   display: block;
-  color: #4a5568;
+  color: #e2e8f0;
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
@@ -159,23 +161,48 @@
 .setting-group input[type="range"] {
   width: 100%;
   margin-bottom: 0.25rem;
+  background: #334155;
+  border-radius: 5px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  border: 2px solid #1e293b;
+}
+
+.setting-group input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  border: 2px solid #1e293b;
 }
 
 .setting-group small {
-  color: #718096;
+  color: #94a3b8;
   font-size: 0.75rem;
   display: block;
 }
 
 .reports-list {
-  background: white;
+  background: #1e293b;
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
+  border: 1px solid #334155;
 }
 
 .reports-list h3 {
-  color: #2d3748;
+  color: #f1f5f9;
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 1rem;
@@ -188,8 +215,8 @@
 }
 
 .report-item {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #334155;
+  border: 1px solid #475569;
   border-radius: 8px;
   padding: 1rem;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -197,24 +224,24 @@
 
 .report-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .report-info h4 {
-  color: #2d3748;
+  color: #f1f5f9;
   font-size: 0.875rem;
   font-weight: 600;
   margin: 0 0 0.5rem 0;
 }
 
 .report-info p {
-  color: #4a5568;
+  color: #e2e8f0;
   font-size: 0.8rem;
   margin: 0 0 0.5rem 0;
 }
 
 .report-date {
-  color: #718096;
+  color: #94a3b8;
   font-size: 0.75rem;
   font-weight: 500;
 }
@@ -222,11 +249,11 @@
 .report-coords {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #475569;
 }
 
 .report-coords small {
-  color: #9ca3af;
+  color: #64748b;
   font-size: 0.7rem;
   font-family: monospace;
 }
@@ -237,13 +264,13 @@
 
 .crime-popup h4 {
   margin: 0 0 0.5rem 0;
-  color: #2d3748;
+  color: #f1f5f9;
   font-size: 1rem;
 }
 
 .crime-popup p {
   margin: 0.25rem 0;
-  color: #4a5568;
+  color: #e2e8f0;
   font-size: 0.875rem;
 }
 

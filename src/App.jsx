@@ -14,6 +14,7 @@ function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedReportId, setSelectedReportId] = useState(null)
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -53,6 +54,10 @@ function App() {
         return <Heatmap />
       case 'dispatch':
         return <Dispatch />
+      case 'police-account-management':
+        return <div className="page-content"><h1>Police Account Management</h1><p>Police account management functionality coming soon...</p></div>
+      case 'user-account-management':
+        return <div className="page-content"><h1>User Account Management</h1><p>User account management functionality coming soon...</p></div>
       default:
         return <Dashboard onNavigateToReport={handleNavigateToReport} />
     }
@@ -127,6 +132,58 @@ function App() {
             </svg>
             Dispatch
           </button>
+          <div className="nav-dropdown">
+            <button 
+              className={`nav-item nav-dropdown-toggle ${showAccountDropdown ? 'active' : ''}`}
+              onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Account Management
+              <svg 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                className={`dropdown-arrow ${showAccountDropdown ? 'rotated' : ''}`}
+              >
+                <polyline points="6,9 12,15 18,9"></polyline>
+              </svg>
+            </button>
+            {showAccountDropdown && (
+              <div className="dropdown-menu">
+                <button 
+                  className="dropdown-item"
+                  onClick={() => {
+                    setCurrentPage('police-account-management')
+                    setShowAccountDropdown(false)
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                  </svg>
+                  Police Account Management
+                </button>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => {
+                    setCurrentPage('user-account-management')
+                    setShowAccountDropdown(false)
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  User Account Management
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
