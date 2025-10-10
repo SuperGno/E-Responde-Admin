@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './App.css'
 import Dashboard from './components/Dashboard.jsx'
 import Analytics from './components/Analytics.jsx'
@@ -6,35 +6,20 @@ import ViewReport from './components/ViewReport.jsx'
 import Heatmap from './components/Heatmap.jsx'
 import Dispatch from './components/Dispatch.jsx'
 import Login from './components/Login.jsx'
-import { auth } from './firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [selectedReportId, setSelectedReportId] = useState(null)
   const [showAccountDropdown, setShowAccountDropdown] = useState(false)
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
-  }, [])
-
   const handleLoginSuccess = () => {
-    // User state will be updated by onAuthStateChanged
+    setUser({ email: 'admin', isAuthenticated: true })
   }
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth)
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
+  const handleLogout = () => {
+    setUser(null)
   }
 
   const handleNavigateToReport = (reportId) => {
@@ -61,10 +46,6 @@ function App() {
       default:
         return <Dashboard onNavigateToReport={handleNavigateToReport} />
     }
-  }
-
-  if (loading) {
-    return <div className="loading">Loading...</div>
   }
 
   if (!user) {
