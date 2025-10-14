@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { realtimeDb } from '../firebase'
 import { ref, set, get } from 'firebase/database'
-import CryptoJS from 'crypto-js'
 import './Login.css'
 
 function Login({ onLoginSuccess }) {
@@ -17,9 +16,13 @@ function Login({ onLoginSuccess }) {
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState('')
 
-  // Hash password using SHA-256
-  const hashPassword = (password) => {
-    return CryptoJS.SHA256(password).toString()
+  // Simple password hashing using built-in Web Crypto API
+  const hashPassword = async (password) => {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(password)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   }
 
   const handleCreateAccount = async (e) => {
@@ -57,7 +60,7 @@ function Login({ onLoginSuccess }) {
       }
 
       // Hash the password
-      const hashedPassword = hashPassword(createPassword)
+      const hashedPassword = await hashPassword(createPassword)
 
       // Create account data
       const accountData = {
@@ -151,7 +154,7 @@ function Login({ onLoginSuccess }) {
       }
 
       // Hash the provided password and compare with stored hash
-      const hashedPassword = hashPassword(password)
+      const hashedPassword = await hashPassword(password)
 
       if (adminData.password !== hashedPassword) {
         setError('Invalid email or password.')
