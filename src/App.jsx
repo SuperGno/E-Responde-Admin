@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import Dashboard from './components/Dashboard.jsx'
 import Analytics from './components/Analytics.jsx'
@@ -7,6 +7,7 @@ import Heatmap from './components/Heatmap.jsx'
 import Dispatch from './components/Dispatch.jsx'
 import Login from './components/Login.jsx'
 import UserAccountManagement from './components/UserAccountManagement.jsx'
+import PoliceAccountManagement from './components/PoliceAccountManagement.jsx'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -15,12 +16,31 @@ function App() {
   const [selectedReportId, setSelectedReportId] = useState(null)
   const [showAccountDropdown, setShowAccountDropdown] = useState(false)
 
+  // Load user authentication state from localStorage on component mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('e-responde-user')
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser)
+        setUser(userData)
+      } catch (error) {
+        console.error('Error parsing saved user data:', error)
+        localStorage.removeItem('e-responde-user')
+      }
+    }
+  }, [])
+
   const handleLoginSuccess = () => {
-    setUser({ email: 'admin', isAuthenticated: true })
+    const userData = { email: 'admin', isAuthenticated: true }
+    setUser(userData)
+    // Save user data to localStorage to persist across page reloads
+    localStorage.setItem('e-responde-user', JSON.stringify(userData))
   }
 
   const handleLogout = () => {
     setUser(null)
+    // Remove user data from localStorage when logging out
+    localStorage.removeItem('e-responde-user')
   }
 
   const handleNavigateToReport = (reportId) => {
@@ -41,7 +61,7 @@ function App() {
       case 'dispatch':
         return <Dispatch />
       case 'police-account-management':
-        return <div className="page-content"><h1>Police Account Management</h1><p>Police account management functionality coming soon...</p></div>
+        return <PoliceAccountManagement />
       case 'user-account-management':
         return <UserAccountManagement />
       default:

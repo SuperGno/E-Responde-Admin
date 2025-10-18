@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { getDatabase, ref, get } from 'firebase/database'
 import { app } from '../firebase'
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.heat'
 import './Heatmap.css'
 
 // Fix for default markers in react-leaflet
@@ -14,6 +15,87 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
+// HeatmapLayer component
+function HeatmapLayer({ data, intensity, radius }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    if (!data || data.length === 0) return
+    
+    // Create heatmap layer
+    const heatmapLayer = L.heatLayer(data, {
+      radius: radius,
+      blur: 15,
+      maxZoom: 17,
+      max: 1.0,
+      gradient: {
+        0.0: 'blue',
+        0.2: 'cyan',
+        0.4: 'lime',
+        0.6: 'yellow',
+        0.8: 'orange',
+        1.0: 'red'
+      }
+    }).addTo(map)
+    
+    return () => {
+      map.removeLayer(heatmapLayer)
+    }
+  }, [data, intensity, radius, map])
+  
+  return null
+}
+
+// ConcentricCircles component for distance reference
+function ConcentricCircles({ center, radius }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    if (!center) return
+    
+    const circles = []
+    const distances = [0.25, 0.5, 1, 2] // km
+    
+    distances.forEach((distance, index) => {
+      const circle = L.circle(center, {
+        radius: distance * 1000, // Convert km to meters
+        color: '#ff6b35',
+        weight: 2,
+        opacity: 0.8,
+        fill: false,
+        dashArray: '5, 5'
+      }).addTo(map)
+      
+      // Add distance label
+      const label = L.marker(center, {
+        icon: L.divIcon({
+          html: `<div style="
+            background: rgba(255, 107, 53, 0.8);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid white;
+          ">${distance} km</div>`,
+          className: 'distance-label',
+          iconSize: [50, 20],
+          iconAnchor: [25, 10]
+        })
+      }).addTo(map)
+      
+      circles.push(circle, label)
+    })
+    
+    return () => {
+      circles.forEach(circle => map.removeLayer(circle))
+    }
+  }, [center, map])
+  
+  return null
+}
+
 function Heatmap() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +104,8 @@ function Heatmap() {
   const [timeRange, setTimeRange] = useState('30')
   const [intensity, setIntensity] = useState(5)
   const [radius, setRadius] = useState(50)
+  const [showConcentricCircles, setShowConcentricCircles] = useState(false)
+  const [referencePoint, setReferencePoint] = useState(null)
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -80,33 +164,23 @@ function Heatmap() {
     return filtered
   }
 
-  // Create crime density clusters
-  const createCrimeClusters = () => {
+  // Create heatmap data points
+  const createHeatmapData = () => {
     const filteredReports = getFilteredReports()
-    const clusters = new Map()
-    const clusterRadius = 0.01 * (radius / 50) // Adjust clustering based on radius setting
-
+    const heatmapPoints = []
+    
+    // Group reports by location and create weighted points
+    const locationGroups = new Map()
+    
     filteredReports.forEach(report => {
       const lat = parseFloat(report.location.latitude)
       const lng = parseFloat(report.location.longitude)
+      const key = `${lat.toFixed(4)},${lng.toFixed(4)}`
       
-      // Find existing cluster or create new one
-      let foundCluster = null
-      for (const [key, cluster] of clusters) {
-        const distance = Math.sqrt(
-          Math.pow(lat - cluster.lat, 2) + Math.pow(lng - cluster.lng, 2)
-        )
-        if (distance < clusterRadius) {
-          foundCluster = cluster
-          break
-        }
-      }
-
-      if (foundCluster) {
-        foundCluster.count++
-        foundCluster.reports.push(report)
+      if (locationGroups.has(key)) {
+        locationGroups.get(key).count++
       } else {
-        clusters.set(`${lat},${lng}`, {
+        locationGroups.set(key, {
           lat,
           lng,
           count: 1,
@@ -114,8 +188,14 @@ function Heatmap() {
         })
       }
     })
-
-    return Array.from(clusters.values())
+    
+    // Convert to heatmap format with intensity based on crime count
+    locationGroups.forEach(group => {
+      const intensity = Math.min(1.0, group.count / 10) // Normalize to 0-1, max at 10 crimes
+      heatmapPoints.push([group.lat, group.lng, intensity])
+    })
+    
+    return heatmapPoints
   }
 
   // Get marker color based on crime count
@@ -167,63 +247,66 @@ function Heatmap() {
             <MapContainer
               center={[14.6042, 120.9822]} // Manila, Philippines
               zoom={11}
-              style={{ height: '400px', width: '100%' }}
+              style={{ height: '500px', width: '100%' }}
+              className="dark-map"
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='Leaflet | © OpenStreetMap contributors'
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                subdomains="abcd"
+                maxZoom={20}
               />
-              {createCrimeClusters().map((cluster, index) => (
-                <CircleMarker
-                  key={index}
-                  center={[cluster.lat, cluster.lng]}
-                  radius={getMarkerSize(cluster.count)}
-                  pathOptions={{
-                    color: getMarkerColor(cluster.count),
-                    fillColor: getMarkerColor(cluster.count),
-                    fillOpacity: getMarkerOpacity(),
-                    weight: 2
-                  }}
-                >
+              
+              {/* Heatmap Layer */}
+              <HeatmapLayer 
+                data={createHeatmapData()} 
+                intensity={intensity} 
+                radius={radius} 
+              />
+              
+              {/* Concentric Circles for distance reference */}
+              {showConcentricCircles && referencePoint && (
+                <ConcentricCircles center={referencePoint} radius={radius} />
+              )}
+              
+              {/* Reference point marker */}
+              {referencePoint && (
+                <Marker position={referencePoint}>
                   <Popup>
-                    <div className="crime-popup">
-                      <h4>Crime Cluster</h4>
-                      <p><strong>Crime Count:</strong> {cluster.count}</p>
-                      <p><strong>Location:</strong> {cluster.lat.toFixed(4)}, {cluster.lng.toFixed(4)}</p>
-                      <div className="crime-types">
-                        <strong>Crime Types:</strong>
-                        <ul>
-                          {cluster.reports.map((report, i) => (
-                            <li key={i}>{report.crimeType || 'Unknown'}</li>
-                          ))}
-                        </ul>
-                      </div>
+                    <div className="reference-popup">
+                      <h4>Reference Point</h4>
+                      <p><strong>Location:</strong> {referencePoint[0].toFixed(4)}, {referencePoint[1].toFixed(4)}</p>
+                      <p>Distance circles show 0.25km, 0.5km, 1km, and 2km radius</p>
                     </div>
                   </Popup>
-                </CircleMarker>
-              ))}
+                </Marker>
+              )}
             </MapContainer>
             <div className="map-legend">
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: '600', color: '#000000' }}>Crime Density</h4>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: '600', color: '#f1f5f9' }}>Crime Density</h4>
               <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#16a34a' }}></div>
-                <span className="legend-label">1 crime</span>
+                <div className="legend-color" style={{ backgroundColor: '#0000ff' }}></div>
+                <span className="legend-label">Low</span>
               </div>
               <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#ca8a04' }}></div>
-                <span className="legend-label">2 crimes</span>
+                <div className="legend-color" style={{ backgroundColor: '#00ffff' }}></div>
+                <span className="legend-label">Medium-Low</span>
               </div>
               <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#d97706' }}></div>
-                <span className="legend-label">3 crimes</span>
+                <div className="legend-color" style={{ backgroundColor: '#00ff00' }}></div>
+                <span className="legend-label">Medium</span>
               </div>
               <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#ea580c' }}></div>
-                <span className="legend-label">5+ crimes</span>
+                <div className="legend-color" style={{ backgroundColor: '#ffff00' }}></div>
+                <span className="legend-label">Medium-High</span>
               </div>
               <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#dc2626' }}></div>
-                <span className="legend-label">10+ crimes</span>
+                <div className="legend-color" style={{ backgroundColor: '#ff8000' }}></div>
+                <span className="legend-label">High</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: '#ff0000' }}></div>
+                <span className="legend-label">Very High</span>
               </div>
             </div>
           </div>
@@ -271,7 +354,7 @@ function Heatmap() {
                 onChange={(e) => setIntensity(parseInt(e.target.value))}
               />
               <small style={{ color: '#718096', fontSize: '0.75rem' }}>
-                Controls marker opacity
+                Controls heatmap intensity
               </small>
             </div>
             <div className="setting-group">
@@ -284,9 +367,46 @@ function Heatmap() {
                 onChange={(e) => setRadius(parseInt(e.target.value))}
               />
               <small style={{ color: '#718096', fontSize: '0.75rem' }}>
-                Controls marker size & clustering
+                Controls heatmap radius & blur
               </small>
             </div>
+            <div className="setting-group">
+              <label>
+                <input 
+                  type="checkbox" 
+                  checked={showConcentricCircles}
+                  onChange={(e) => setShowConcentricCircles(e.target.checked)}
+                  style={{ marginRight: '0.5rem' }}
+                />
+                Show Distance Circles
+              </label>
+              <small style={{ color: '#718096', fontSize: '0.75rem' }}>
+                Display concentric circles for distance reference
+              </small>
+            </div>
+            {showConcentricCircles && (
+              <div className="setting-group">
+                <label>Set Reference Point</label>
+                <button 
+                  onClick={() => setReferencePoint([14.60873355945734, 120.96718066988043])}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    backgroundColor: '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Center on Moriones-Tondo Police Station
+                </button>
+                <small style={{ color: '#718096', fontSize: '0.75rem' }}>
+                  Click to set reference point for distance circles
+                </small>
+              </div>
+            )}
           </div>
         </div>
       </div>

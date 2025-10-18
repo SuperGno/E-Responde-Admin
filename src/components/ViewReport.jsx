@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getDatabase, ref, get } from 'firebase/database'
-import { app } from '../firebase'
+import { ref as storageRef, getDownloadURL } from 'firebase/storage'
+import { app, storage } from '../firebase'
 import './ViewReport.css'
 
 function ViewReport({ reportId }) {
@@ -195,7 +196,25 @@ Focus on practical admin actions that address the specific details mentioned in 
           }
           
           // Debug multimedia data
-          console.log('Multimedia data:', data.multimedia)
+          console.log('Raw multimedia data:', data.multimedia)
+          console.log('Multimedia type:', typeof data.multimedia)
+          console.log('Multimedia length:', data.multimedia ? data.multimedia.length : 'null/undefined')
+          if (data.multimedia && data.multimedia.length > 0) {
+            data.multimedia.forEach((media, index) => {
+              console.log(`Media ${index}:`, {
+                value: media,
+                type: typeof media,
+                startsWithData: media.startsWith('data:image/'),
+                includesFirebase: media.includes('firebase'),
+                includesHttp: media.includes('http'),
+                includesFile: media.includes('file://'),
+                includesRnPicker: media.includes('rn_image_picker'),
+                isBase64: media.startsWith('data:image/'),
+                length: media.length,
+                preview: media.substring(0, 100) + '...'
+              });
+            });
+          }
           
           setReportData({
             reportId: data.reportId || reportId,
@@ -238,6 +257,245 @@ Focus on practical admin actions that address the specific details mentioned in 
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Helper function to attempt to convert mobile file paths to accessible URLs
+  const tryConvertMobileFileToUrl = async (filePath) => {
+    try {
+      console.log(`🔍 Starting Firebase Storage lookup for: ${filePath}`);
+      
+      // Extract filename from the path
+      const filename = filePath.split('/').pop();
+      console.log(`📁 Extracted filename: ${filename}`);
+      
+      // Try to construct a potential Firebase Storage path
+      // This assumes the mobile app might have uploaded to a specific path
+      const potentialPaths = [
+        `civilian crime reports/multimedia/${reportId}/${filename}`,
+        `civilian/civilian crime reports/${reportId}/multimedia/${filename}`,
+        `crime-reports/${reportId}/${filename}`,
+        `multimedia/${reportId}/${filename}`,
+        `evidence/${reportId}/${filename}`,
+        `images/${reportId}/${filename}`,
+        `uploads/${reportId}/${filename}`,
+        filename // Just the filename
+      ];
+      
+      console.log(`🎯 Will try ${potentialPaths.length} potential paths`);
+      
+      // Try each potential path with timeout
+      for (let i = 0; i < potentialPaths.length; i++) {
+        const path = potentialPaths[i];
+        try {
+          console.log(`🔄 [${i + 1}/${potentialPaths.length}] Trying Firebase Storage path: ${path}`);
+          
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+          );
+          
+          const imageRef = storageRef(storage, path);
+          const urlPromise = getDownloadURL(imageRef);
+          
+          const url = await Promise.race([urlPromise, timeoutPromise]);
+          console.log(`✅ Found image at path: ${path}`);
+          return url;
+        } catch (err) {
+          console.log(`❌ [${i + 1}/${potentialPaths.length}] Failed to find image at path: ${path}`, err.message);
+          // Continue to next path
+          continue;
+        }
+      }
+      
+      console.log(`🚫 No image found in Firebase Storage after trying ${potentialPaths.length} paths`);
+      return null; // No accessible URL found
+    } catch (error) {
+      console.error('💥 Error trying to convert mobile file:', error);
+      return null;
+    }
+  };
+
+  // Component to handle mobile file paths with Firebase Storage lookup
+  const MobileFileComponent = ({ media, index, reportId }) => {
+    const [imageUrl, setImageUrl] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+      const attemptImageConversion = async () => {
+        try {
+          setIsLoading(true);
+          setError(null);
+          
+          // Add overall timeout to prevent infinite loading (reduced to 10 seconds)
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Image not uploaded to Firebase Storage')), 10000)
+          );
+          
+          const conversionPromise = tryConvertMobileFileToUrl(media);
+          const url = await Promise.race([conversionPromise, timeoutPromise]);
+          
+          if (url) {
+            setImageUrl(url);
+          } else {
+            setError('Image not found in Firebase Storage');
+          }
+        } catch (err) {
+          setError('Mobile app image not uploaded to cloud storage');
+          console.error('Mobile file conversion error:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      attemptImageConversion();
+    }, [media, reportId]);
+
+    if (isLoading) {
+      return (
+        <div className="evidence-placeholder mobile-file loading">
+          <div className="loading-spinner"></div>
+          <span>Photo {index + 1}</span>
+          <small>Checking Firebase Storage...</small>
+        </div>
+      );
+    }
+
+    if (imageUrl) {
+      return (
+        <div className="evidence-photo">
+          <img 
+            src={imageUrl} 
+            alt={`Evidence photo ${index + 1}`}
+            onError={(e) => {
+              console.error('Converted image load error:', e.target.src);
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+            onLoad={() => {
+              console.log(`Converted mobile image ${index + 1} loaded successfully`);
+            }}
+          />
+          <div className="evidence-placeholder" style={{ display: 'none' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21,15 16,10 5,21"></polyline>
+            </svg>
+            <span>Photo {index + 1}</span>
+            <small>Failed to load</small>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="evidence-placeholder mobile-file">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21,15 16,10 5,21"></polyline>
+        </svg>
+        <span>Photo {index + 1}</span>
+        <small>Mobile App Image</small>
+        <div className="file-info">
+          <small>File: {media.split('/').pop()}</small>
+          <div className="file-note">
+            <small>📱 {error || 'This image was captured on a mobile device and is not accessible from the web interface.'}</small>
+            <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280' }}>
+              <strong>Note:</strong> The mobile app captured this image but didn't upload it to cloud storage. 
+              To view the image, check the mobile device or contact the reporter.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to determine image type and handle display
+  const getImageDisplayComponent = (media, index) => {
+    console.log(`Processing media ${index}:`, media);
+    console.log(`Media length: ${media.length}, starts with data: ${media.startsWith('data:image/')}`);
+    
+    // Check for base64 data URLs (including those stored in Realtime Database)
+    if (media.startsWith('data:image/')) {
+      console.log(`✅ Detected base64 image for photo ${index + 1}`);
+      return (
+        <div className="evidence-photo">
+          <img 
+            src={media} 
+            alt={`Evidence photo ${index + 1}`}
+            onError={(e) => {
+              console.error('Base64 image load error:', e.target.src.substring(0, 50) + '...');
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+            onLoad={() => {
+              console.log(`✅ Base64 image ${index + 1} loaded successfully from Realtime Database`);
+            }}
+          />
+          <div className="evidence-placeholder" style={{ display: 'none' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21,15 16,10 5,21"></polyline>
+            </svg>
+            <span>Photo {index + 1}</span>
+            <small>Failed to load</small>
+          </div>
+        </div>
+      );
+    }
+    
+    // Check for Firebase Storage or HTTP URLs
+    if (media.includes('firebase') || media.includes('http://') || media.includes('https://')) {
+      return (
+        <div className="evidence-photo">
+          <img 
+            src={media} 
+            alt={`Evidence photo ${index + 1}`}
+            onError={(e) => {
+              console.error('URL image load error:', e.target.src);
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+            onLoad={() => {
+              console.log(`URL image ${index + 1} loaded successfully`);
+            }}
+          />
+          <div className="evidence-placeholder" style={{ display: 'none' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21,15 16,10 5,21"></polyline>
+            </svg>
+            <span>Photo {index + 1}</span>
+            <small>Failed to load</small>
+          </div>
+        </div>
+      );
+    }
+    
+    // Check for mobile app file paths
+    if (media.includes('file://') || media.includes('rn_image_picker') || media.includes('content://')) {
+      return <MobileFileComponent media={media} index={index} reportId={reportId} />;
+    }
+    
+    // Unknown format
+    return (
+      <div className="evidence-placeholder">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21,15 16,10 5,21"></polyline>
+        </svg>
+        <span>Photo {index + 1}</span>
+        <small>Unknown format</small>
+        <div className="file-info">
+          <small>{media.substring(0, 50)}...</small>
+        </div>
+      </div>
+    );
   };
 
   // AI dispatch removed; no action buttons rendered.
@@ -363,82 +621,27 @@ Focus on practical admin actions that address the specific details mentioned in 
 
           <div className="report-section">
             <h2>Evidence Photos</h2>
+            {reportData.multimedia && reportData.multimedia.some(media => 
+              media.includes('file://') || media.includes('rn_image_picker') || media.includes('content://')
+            ) && (
+              <div style={{ 
+                background: '#fef3c7', 
+                border: '1px solid #f59e0b', 
+                borderRadius: '8px', 
+                padding: '1rem', 
+                marginBottom: '1rem',
+                color: '#92400e'
+              }}>
+                <strong>📱 Mobile App Images:</strong> Some images were captured on mobile devices. The system is checking if they are stored as base64 data in the database or need to be retrieved from cloud storage.
+              </div>
+            )}
             <div className="evidence-grid">
               {reportData.multimedia && reportData.multimedia.length > 0 ? (
-                reportData.multimedia.map((media, index) => {
-                  console.log(`Media ${index}:`, media)
-                  return (
+                reportData.multimedia.map((media, index) => (
                   <div key={index} className="evidence-item">
-                    {media.includes('file://') ? (
-                      <div className="evidence-placeholder">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                          <polyline points="21,15 16,10 5,21"></polyline>
-                        </svg>
-                        <span>Photo {index + 1}</span>
-                        <small>Mobile app file</small>
-                        <div className="file-info">
-                          <small>Path: {media.split('/').pop()}</small>
-                        </div>
-                      </div>
-                    ) : media.startsWith('data:image/') ? (
-                      <div className="evidence-photo">
-                        <img 
-                          src={media} 
-                          alt={`Evidence photo ${index + 1}`}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div className="evidence-placeholder" style={{ display: 'none' }}>
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21,15 16,10 5,21"></polyline>
-                          </svg>
-                          <span>Photo {index + 1}</span>
-                          <small>Failed to load</small>
-                        </div>
-                      </div>
-                    ) : media.includes('firebase') || media.includes('http') ? (
-                      <div className="evidence-photo">
-                        <img 
-                          src={media} 
-                          alt={`Evidence photo ${index + 1}`}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div className="evidence-placeholder" style={{ display: 'none' }}>
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21,15 16,10 5,21"></polyline>
-                          </svg>
-                          <span>Photo {index + 1}</span>
-                          <small>Failed to load</small>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="evidence-placeholder">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                          <polyline points="21,15 16,10 5,21"></polyline>
-                        </svg>
-                        <span>Photo {index + 1}</span>
-                        <small>Unknown format</small>
-                        <div className="file-info">
-                          <small>{media.substring(0, 50)}...</small>
-                        </div>
-                      </div>
-                    )}
+                    {getImageDisplayComponent(media, index)}
                   </div>
-                  )
-                })
+                ))
               ) : (
                 <div className="no-evidence">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

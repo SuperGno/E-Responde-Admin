@@ -1,9 +1,12 @@
-/* Dispatch Styles */
+/* Dispatch Styles - Dark Mode */
 
 .dispatch-container {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  background: #1a1a1a;
+  min-height: 100vh;
+  color: #ffffff;
 }
 
 .dispatch-header {
@@ -11,7 +14,7 @@
 }
 
 .dispatch-header h1 {
-  color: #f1f5f9;
+  color: #ffffff;
   margin-bottom: 0.5rem;
   font-size: 2rem;
   font-weight: 700;
@@ -30,19 +33,20 @@
 }
 
 .stat-card {
-  background: white;
+  background: linear-gradient(42deg, #667eea 0%, #1a082b 100%);
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
   transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #374151;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
 .stat-icon {
@@ -75,25 +79,26 @@
 .stat-number {
   font-size: 2rem;
   font-weight: 700;
-  color: #2d3748;
+  color: #ffffff;
   line-height: 1;
 }
 
 .stat-label {
-  color: #718096;
+  color: #94a3b8;
   font-size: 0.9rem;
   font-weight: 500;
 }
 
 .dispatch-content {
-  background: white;
+  background: #2d2d2d;
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
+  border: 1px solid #374151;
 }
 
 .reports-section h2 {
-  color: #2d3748;
+  color: #ffffff;
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
   font-weight: 600;
@@ -102,12 +107,12 @@
 .no-reports {
   text-align: center;
   padding: 3rem;
-  color: #718096;
+  color: #94a3b8;
 }
 
 .no-reports svg {
   margin-bottom: 1rem;
-  color: #a0aec0;
+  color: #6b7280;
 }
 
 .no-reports p {
@@ -122,8 +127,8 @@
 }
 
 .report-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #1f2937;
+  border: 1px solid #374151;
   border-radius: 12px;
   padding: 1.5rem;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -131,7 +136,8 @@
 
 .report-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  border-color: #4b5563;
 }
 
 .report-header {
@@ -148,7 +154,7 @@
 }
 
 .type-badge {
-  background: #667eea;
+  background: #4b5563;
   color: white;
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
@@ -166,7 +172,7 @@
 }
 
 .report-time {
-  color: #718096;
+  color: #94a3b8;
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -178,17 +184,17 @@
 .detail-item {
   margin-bottom: 0.75rem;
   font-size: 0.9rem;
-  color: #4a5568;
+  color: #d1d5db;
 }
 
 .detail-item strong {
-  color: #2d3748;
+  color: #ffffff;
   font-weight: 600;
 }
 
 .description-text {
   margin: 0.25rem 0 0 0;
-  color: #718096;
+  color: #9ca3af;
   font-style: italic;
   line-height: 1.4;
 }
@@ -199,7 +205,7 @@
 }
 
 .dispatch-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #1c6cdc, #6b7280);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -214,7 +220,7 @@
 
 .dispatch-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(75, 85, 99, 0.4);
 }
 
 /* Modal Styles */
@@ -232,13 +238,14 @@
 }
 
 .dispatch-modal {
-  background: white;
+  background: #2d2d2d;
   border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid #374151;
 }
 
 .modal-header {
@@ -246,12 +253,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #374151;
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #2d3748;
+  color: #ffffff;
   font-size: 1.25rem;
   font-weight: 600;
 }
@@ -260,7 +267,7 @@
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #718096;
+  color: #94a3b8;
   cursor: pointer;
   padding: 0;
   width: 24px;
@@ -271,7 +278,7 @@
 }
 
 .close-btn:hover {
-  color: #2d3748;
+  color: #ffffff;
 }
 
 .modal-body {
@@ -279,15 +286,16 @@
 }
 
 .report-summary {
-  background: #f8fafc;
+  background: #1f2937;
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
+  border: 1px solid #374151;
 }
 
 .report-summary h4 {
   margin: 0 0 0.75rem 0;
-  color: #2d3748;
+  color: #ffffff;
   font-size: 1rem;
   font-weight: 600;
 }
@@ -295,7 +303,7 @@
 .report-summary p {
   margin: 0.25rem 0;
   font-size: 0.9rem;
-  color: #4a5568;
+  color: #d1d5db;
 }
 
 .dispatch-form {
@@ -310,7 +318,7 @@
 }
 
 .form-group label {
-  color: #2d3748;
+  color: #ffffff;
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
@@ -320,11 +328,11 @@
 .form-group select,
 .form-group textarea {
   padding: 0.75rem;
-  border: 2px solid #e2e8f0;
+  border: 2px solid #374151;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #2d3748;
-  background-color: #ffffff;
+  color: #ffffff;
+  background-color: #1f2937;
   transition: border-color 0.2s;
 }
 
@@ -332,8 +340,8 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  background-color: #ffffff;
+  border-color: #6b7280;
+  background-color: #1f2937;
 }
 
 .form-group textarea {
@@ -341,10 +349,10 @@
   min-height: 80px;
 }
 
-/* Ensure dropdown options have white background */
+/* Ensure dropdown options have dark background */
 .form-group select option {
-  background-color: #ffffff;
-  color: #2d3748;
+  background-color: #1f2937;
+  color: #ffffff;
   padding: 0.5rem;
 }
 
@@ -353,13 +361,13 @@
   justify-content: flex-end;
   gap: 1rem;
   padding: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #374151;
 }
 
 .btn-cancel {
-  background: #f7fafc;
-  color: #4a5568;
-  border: 2px solid #e2e8f0;
+  background: #374151;
+  color: #d1d5db;
+  border: 2px solid #4b5563;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   font-weight: 600;
@@ -368,12 +376,12 @@
 }
 
 .btn-cancel:hover {
-  background: #edf2f7;
-  border-color: #cbd5e0;
+  background: #4b5563;
+  border-color: #6b7280;
 }
 
 .btn-dispatch {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #4b5563, #6b7280);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -385,22 +393,22 @@
 
 .btn-dispatch:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(75, 85, 99, 0.4);
 }
 
 .loading,
 .error {
   text-align: center;
   padding: 3rem;
-  color: #718096;
+  color: #94a3b8;
   font-size: 1.1rem;
 }
 
 .error {
-  color: #e53e3e;
-  background: #fed7d7;
+  color: #fca5a5;
+  background: #7f1d1d;
   border-radius: 8px;
-  border: 1px solid #feb2b2;
+  border: 1px solid #991b1b;
 }
 
 /* Responsive Design */

@@ -243,6 +243,92 @@
   font-size: 0.75rem;
 }
 
+.user-status {
+  text-align: center;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-badge.active {
+  background: #10b981;
+  color: white;
+}
+
+.status-badge.suspended {
+  background: #ef4444;
+  color: white;
+}
+
+.user-actions {
+  text-align: center;
+}
+
+.action-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.suspend-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.suspend-btn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.unsuspend-btn {
+  background: #10b981;
+  color: white;
+}
+
+.unsuspend-btn:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.action-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.suspended-user {
+  opacity: 0.7;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.suspended-user:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .user-management-container {

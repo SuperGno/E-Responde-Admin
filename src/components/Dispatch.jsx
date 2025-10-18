@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { getDatabase, ref, get, update } from 'firebase/database'
-import { getFirestore, collection, getDocs } from 'firebase/firestore'
 import { app } from '../firebase'
 import './Dispatch.css'
 
@@ -36,63 +35,116 @@ function Dispatch() {
   // Sort patrol units by distance to crime location
   const sortPatrolUnitsByDistance = (units, crimeLat, crimeLon) => {
     if (!crimeLat || !crimeLon) {
+      console.log('No crime location provided, returning unsorted units');
       return units; // Return unsorted if no crime location
     }
 
+    console.log(`Sorting ${units.length} patrol units by distance to crime location: ${crimeLat}, ${crimeLon}`);
+
     return units.map(unit => {
-      const unitLat = parseFloat(unit.Latitude || unit.latitude || 0);
-      const unitLon = parseFloat(unit.Longitude || unit.longitude || 0);
+      const unitLat = parseFloat(unit.latitude || 0);
+      const unitLon = parseFloat(unit.longitude || 0);
       
-      if (unitLat && unitLon) {
+      if (unitLat && unitLon && unitLat !== 0 && unitLon !== 0) {
         const distance = calculateDistance(crimeLat, crimeLon, unitLat, unitLon);
+        console.log(`Unit ${unit.firstName} ${unit.lastName} is ${distance.toFixed(2)} km away`);
         return { ...unit, distance: distance };
       } else {
+        console.log(`Unit ${unit.firstName} ${unit.lastName} has no valid location data`);
         return { ...unit, distance: 999999 }; // Put units without location at the end
       }
-    }).sort((a, b) => a.distance - b.distance);
+    }).sort((a, b) => {
+      // Sort by distance, but prioritize available units
+      if (a.status === 'Available' && b.status !== 'Available') return -1;
+      if (b.status === 'Available' && a.status !== 'Available') return 1;
+      return a.distance - b.distance;
+    });
   }
 
-  // Fetch patrol units from Firestore
+  // Fetch police accounts from Realtime Database
   const fetchPatrolUnits = async () => {
     try {
-      console.log('Starting to fetch patrol units...')
-      const db = getFirestore(app)
-      const patrolUnitsRef = collection(db, 'patrol_units')
-      console.log('Firestore reference created for patrol_units collection')
+      console.log('Starting to fetch police accounts from Realtime Database...')
+      const db = getDatabase(app)
+      const policeAccountsRef = ref(db, 'police/police account')
+      console.log('Realtime Database reference created for police/police account')
       
-      const snapshot = await getDocs(patrolUnitsRef)
+      const snapshot = await get(policeAccountsRef)
       console.log('Snapshot received:', snapshot)
-      console.log('Number of documents:', snapshot.size)
+      console.log('Snapshot exists:', snapshot.exists())
       
       const units = []
-      snapshot.forEach((doc) => {
-        console.log('Processing document:', doc.id, doc.data())
-        const data = doc.data()
-        const unit = {
-          id: doc.id,
-          policeId: data.Police_ID || data.police_id || data.policeId || data.policeID || 'Unknown',
-          status: data.Status || data.status || 'Unknown',
-          ...data
-        }
-        units.push(unit)
-        console.log('Added unit:', unit)
-      })
+      if (snapshot.exists()) {
+        const policeData = snapshot.val()
+        console.log('Police data:', policeData)
+        
+        Object.keys(policeData).forEach(accountId => {
+          const accountData = policeData[accountId]
+          console.log('Processing police account:', accountId, accountData)
+          
+          if (accountData.email && accountData.firstName) {
+            // Extract location data from currentLocation object
+            const currentLocation = accountData.currentLocation || {}
+            const latitude = currentLocation.latitude || accountData.latitude || null
+            const longitude = currentLocation.longitude || accountData.longitude || null
+            
+            // Debug location data
+            console.log(`Location data for ${accountData.firstName}:`, {
+              currentLocation: currentLocation,
+              latitude: latitude,
+              longitude: longitude,
+              hasCurrentLocation: !!accountData.currentLocation,
+              hasDirectLat: !!accountData.latitude,
+              hasDirectLon: !!accountData.longitude
+            })
+            
+            // Temporary: Add default location for testing if no location data exists
+            let finalLatitude = latitude
+            let finalLongitude = longitude
+            
+            if (!finalLatitude || !finalLongitude) {
+              console.warn(`No location data found for ${accountData.firstName}. Adding default Manila location for testing.`)
+              // Default to Manila coordinates for testing
+              finalLatitude = 14.5995
+              finalLongitude = 120.9842
+            }
+            
+            const unit = {
+              id: accountId,
+              policeId: accountData.policeId || accountData.police_id || accountId,
+              firstName: accountData.firstName,
+              lastName: accountData.lastName || '',
+              email: accountData.email,
+              policeRank: accountData.policeRank || 'Officer',
+              status: accountData.isActive !== false ? 'Available' : 'Unavailable',
+              isActive: accountData.isActive !== false,
+              contactNumber: accountData.contactNumber || '',
+              latitude: finalLatitude,
+              longitude: finalLongitude,
+              lastLocationUpdate: currentLocation.lastUpdated || null,
+              ...accountData
+            }
+            units.push(unit)
+            console.log('Added police unit with location:', unit)
+          }
+        })
+      }
       
       setPatrolUnits(units)
-      console.log('Patrol units loaded successfully:', units)
+      console.log('Police accounts loaded successfully:', units)
       
       // If no units found, show a message
       if (units.length === 0) {
-        console.warn('No patrol units found in Firestore collection "patrol_units"')
-        console.log('Please check your Firestore collection and field names')
+        console.warn('No police accounts found in Realtime Database at "police/police account"')
+        console.log('Please check your Realtime Database structure and data')
       }
     } catch (err) {
-      console.error('Error fetching patrol units:', err)
+      console.error('Error fetching police accounts:', err)
       console.error('Error details:', err.message)
       console.error('Error code:', err.code)
       
       // Show error message instead of fallback
-      console.log('Failed to load patrol units from Firestore. Please check console for errors.')
+      console.log('Failed to load police accounts from Realtime Database. Please check console for errors.')
       setPatrolUnits([])
     }
   }
@@ -379,6 +431,33 @@ function Dispatch() {
               </div>
 
               <div className="dispatch-form">
+                {/* Proximity Recommendations */}
+                {sortedPatrolUnits.length > 0 && sortedPatrolUnits[0].distance !== undefined && sortedPatrolUnits[0].distance < 999999 && (
+                  <div className="proximity-recommendations" style={{ 
+                    background: '#f0f9ff', 
+                    border: '1px solid #0ea5e9', 
+                    borderRadius: '8px', 
+                    padding: '1rem', 
+                    marginBottom: '1rem' 
+                  }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', color: '#0c4a6e', fontSize: '0.9rem' }}>
+                      🎯 Recommended Patrol Units (Sorted by Distance)
+                    </h4>
+                    <div style={{ fontSize: '0.8rem', color: '#0369a1' }}>
+                      {sortedPatrolUnits.slice(0, 3).map((unit, index) => (
+                        <div key={unit.id} style={{ marginBottom: '0.25rem' }}>
+                          <strong>{index + 1}.</strong> {unit.policeRank} {unit.firstName} {unit.lastName} 
+                          <span style={{ color: unit.status === 'Available' ? '#16a34a' : '#dc2626' }}>
+                            {' '}({unit.status})
+                          </span>
+                          {' '}- {unit.distance.toFixed(1)} km away
+                          {index === 0 && <span style={{ color: '#dc2626', fontWeight: 'bold' }}> - NEAREST</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label>Response Unit *</label>
                   {sortedPatrolUnits.length > 0 && sortedPatrolUnits[0].distance !== undefined && (
@@ -392,13 +471,24 @@ function Dispatch() {
                     required
                   >
                     <option value="">Select a patrol unit...</option>
-                    {(sortedPatrolUnits.length > 0 ? sortedPatrolUnits : patrolUnits).map((unit, index) => (
-                      <option key={unit.id} value={unit.policeId}>
-                        {unit.policeId} - {unit.status}
-                        {unit.distance !== undefined ? ` (${unit.distance.toFixed(1)} km away)` : ''}
-                        {index === 0 && unit.distance !== undefined ? ' 🎯' : ''}
-                      </option>
-                    ))}
+                    {(sortedPatrolUnits.length > 0 ? sortedPatrolUnits : patrolUnits).map((unit, index) => {
+                      const isNearest = index === 0 && unit.distance !== undefined && unit.distance < 999999;
+                      const isAvailable = unit.status === 'Available';
+                      const distanceText = unit.distance !== undefined && unit.distance < 999999 
+                        ? ` (${unit.distance.toFixed(1)} km away)` 
+                        : ' (Location unknown)';
+                      
+                      // Check if using default location
+                      const isUsingDefaultLocation = unit.latitude === 14.5995 && unit.longitude === 120.9842;
+                      
+                      return (
+                        <option key={unit.id} value={unit.id}>
+                          {isNearest ? '🎯 ' : ''}{unit.policeRank} {unit.firstName} {unit.lastName} - {unit.status}
+                          {isUsingDefaultLocation ? ' (Default Manila location)' : distanceText}
+                          {isNearest ? ' - NEAREST' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

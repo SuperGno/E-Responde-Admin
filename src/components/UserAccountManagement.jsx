@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { realtimeDb } from '../firebase'
-import { ref, get } from 'firebase/database'
+import { ref, get, update } from 'firebase/database'
 import './UserAccountManagement.css'
 
 function UserAccountManagement() {
@@ -8,6 +8,7 @@ function UserAccountManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [totalUsers, setTotalUsers] = useState(0)
+  const [actionLoading, setActionLoading] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -18,7 +19,7 @@ function UserAccountManagement() {
       setLoading(true)
       setError('')
       
-      // Get civilian accounts from Realtime Database
+      // Fetch users from Firebase Realtime Database - civilian/civilian account
       const civilianRef = ref(realtimeDb, 'civilian/civilian account')
       const snapshot = await get(civilianRef)
       
@@ -34,7 +35,11 @@ function UserAccountManagement() {
               id: userId,
               firstName: userData.firstName,
               email: userData.email,
-              createdAt: userData.createdAt || 'Unknown'
+              createdAt: userData.createdAt || userData.registeredAt || 'Unknown',
+              isSuspended: userData.isSuspended || false,
+              suspendedAt: userData.suspendedAt || null,
+              suspendedBy: userData.suspendedBy || null,
+              lastSignIn: userData.lastSignIn || userData.createdAt || 'Unknown'
             })
           }
         })
@@ -45,6 +50,7 @@ function UserAccountManagement() {
         setUsers([])
         setTotalUsers(0)
       }
+      
     } catch (err) {
       console.error('Error fetching users:', err)
       setError('Failed to load user data. Please try again.')
@@ -69,6 +75,42 @@ function UserAccountManagement() {
     }
   }
 
+  const handleSuspendUser = async (userId, currentStatus) => {
+    try {
+      setActionLoading(userId)
+      setError('')
+
+      // Update user status in Firebase Realtime Database
+      const userRef = ref(realtimeDb, `civilian/civilian account/${userId}`)
+      
+      const updates = {
+        isSuspended: !currentStatus,
+        suspendedAt: !currentStatus ? new Date().toISOString() : null,
+        suspendedBy: !currentStatus ? 'admin@e-responde.com' : null
+      }
+
+      await update(userRef, updates)
+      
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { 
+              ...user, 
+              isSuspended: !currentStatus,
+              suspendedAt: updates.suspendedAt,
+              suspendedBy: updates.suspendedBy
+            }
+          : user
+      ))
+
+    } catch (err) {
+      console.error('Error updating user status:', err)
+      setError('Failed to update user status. Please try again.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="user-management-container">
@@ -87,8 +129,8 @@ function UserAccountManagement() {
   return (
     <div className="user-management-container">
       <div className="user-management-header">
-        <h1>User Account Management</h1>
-        <p>Manage and monitor registered users</p>
+        <h1>Civilian Management</h1>
+        <p>Manage and monitor registered civilian users</p>
       </div>
 
       <div className="user-stats">
@@ -149,13 +191,15 @@ function UserAccountManagement() {
                   <th>#</th>
                   <th>First Name</th>
                   <th>Email</th>
+                  <th>Status</th>
                   <th>Registration Date</th>
                   <th>User ID</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user, index) => (
-                  <tr key={user.id}>
+                  <tr key={user.id} className={user.isSuspended ? 'suspended-user' : ''}>
                     <td className="user-number">{index + 1}</td>
                     <td className="user-name">
                       <div className="user-avatar">
@@ -164,8 +208,44 @@ function UserAccountManagement() {
                       {user.firstName}
                     </td>
                     <td className="user-email">{user.email}</td>
+                    <td className="user-status">
+                      <span className={`status-badge ${user.isSuspended ? 'suspended' : 'active'}`}>
+                        {user.isSuspended ? 'Suspended' : 'Active'}
+                      </span>
+                    </td>
                     <td className="user-date">{formatDate(user.createdAt)}</td>
                     <td className="user-id">{user.id.substring(0, 8)}...</td>
+                    <td className="user-actions">
+                      <button
+                        className={`action-btn ${user.isSuspended ? 'unsuspend-btn' : 'suspend-btn'}`}
+                        onClick={() => handleSuspendUser(user.id, user.isSuspended)}
+                        disabled={actionLoading === user.id}
+                      >
+                        {actionLoading === user.id ? (
+                          <div className="action-spinner"></div>
+                        ) : (
+                          <>
+                            {user.isSuspended ? (
+                              <>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M9 12l2 2 4-4"></path>
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                </svg>
+                                Unsuspend
+                              </>
+                            ) : (
+                              <>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M18 6L6 18"></path>
+                                  <path d="M6 6l12 12"></path>
+                                </svg>
+                                Suspend
+                              </>
+                            )}
+                          </>
+                        )}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

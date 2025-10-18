@@ -240,6 +240,54 @@
   word-break: break-all;
 }
 
+/* Mobile file specific styling */
+.evidence-placeholder.mobile-file {
+  background: #fef3c7;
+  border: 2px dashed #f59e0b;
+  color: #92400e;
+}
+
+.evidence-placeholder.mobile-file svg {
+  color: #f59e0b;
+}
+
+.evidence-placeholder.mobile-file .file-note {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* Loading spinner for mobile files */
+.evidence-placeholder.mobile-file.loading {
+  background: #f0f9ff;
+  border: 2px dashed #0ea5e9;
+  color: #0c4a6e;
+}
+
+.evidence-placeholder.mobile-file.loading svg {
+  color: #0ea5e9;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #0ea5e9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .no-evidence {
   grid-column: 1 / -1;
   text-align: center;
