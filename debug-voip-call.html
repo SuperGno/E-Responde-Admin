@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoIP Call Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .debug-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .debug-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .debug-section pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 VoIP Call Debug Tool</h1>
+    <p>Use this tool to debug why the mobile app can't receive calls from the admin dashboard.</p>
+
+    <div class="debug-section">
+        <h3>1. Test Firebase Connection</h3>
+        <button onclick="testFirebaseConnection()">Test Firebase Connection</button>
+        <div id="firebase-status"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>2. Check Recent VoIP Calls</h3>
+        <button onclick="checkRecentCalls()">Check Recent Calls</button>
+        <div id="recent-calls"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>3. Test Call Creation</h3>
+        <div>
+            <label>Target User ID:</label>
+            <input type="text" id="targetUserId" placeholder="Enter mobile user's Firebase UID" style="width: 300px;">
+        </div>
+        <div>
+            <label>Target User Name:</label>
+            <input type="text" id="targetUserName" placeholder="Enter user name" style="width: 200px;">
+        </div>
+        <div>
+            <label>User Type:</label>
+            <select id="targetUserType">
+                <option value="civilian">Civilian</option>
+                <option value="police">Police</option>
+            </select>
+        </div>
+        <button onclick="createTestCall()">Create Test Call</button>
+        <div id="test-call-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>4. Monitor Firebase in Real-time</h3>
+        <button onclick="startMonitoring()">Start Monitoring</button>
+        <button onclick="stopMonitoring()">Stop Monitoring</button>
+        <div id="monitoring-status"></div>
+        <div id="monitoring-data"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>5. Mobile App Checklist</h3>
+        <div id="mobile-checklist">
+            <p><strong>Check these in your mobile app:</strong></p>
+            <ul>
+                <li>✅ Is the mobile app authenticated with Firebase?</li>
+                <li>✅ Is the mobile app listening to <code>voip_calls</code> path?</li>
+                <li>✅ Does the mobile app filter calls by <code>callee.userId</code>?</li>
+                <li>✅ Is the mobile app online and connected to Firebase?</li>
+                <li>✅ Are there any error logs in the mobile app console?</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, push, set, onValue, off, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase configuration (replace with your actual config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCT7NToZVd_Su3fbLqegTX6vhO-QLWMfug",
+            authDomain: "e-responde.firebaseapp.com",
+            databaseURL: "https://e-responde-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "e-responde",
+            storageBucket: "e-responde.firebasestorage.app",
+            messagingSenderId: "343953743058",
+            appId: "1:343953743058:web:489c46e1439e7e9fe7e10b",
+            measurementId: "G-MDLC7VPELW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        
+        let monitoringListeners = [];
+
+        window.testFirebaseConnection = async function() {
+            const statusDiv = document.getElementById('firebase-status');
+            statusDiv.innerHTML = '<div class="status warning">Testing Firebase connection...</div>';
+            
+            try {
+                const testRef = ref(database, 'test');
+                await set(testRef, { timestamp: Date.now(), test: 'connection' });
+                
+                const snapshot = await get(testRef);
+                if (snapshot.exists()) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Firebase connection successful!</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">❌ Firebase connection failed - no data returned</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Firebase connection failed: ${error.message}</div>`;
+            }
+        };
+
+        window.checkRecentCalls = async function() {
+            const callsDiv = document.getElementById('recent-calls');
+            callsDiv.innerHTML = '<div class="status warning">Checking recent calls...</div>';
+            
+            try {
+                const callsRef = ref(database, 'voip_calls');
+                const snapshot = await get(callsRef);
+                
+                if (snapshot.exists()) {
+                    const calls = snapshot.val();
+                    const callEntries = Object.entries(calls).slice(-5); // Last 5 calls
+                    
+                    let html = '<div class="status success">✅ Found recent calls:</div><pre>';
+                    callEntries.forEach(([callId, callData]) => {
+                        html += `Call ID: ${callId}\n`;
+                        html += `Status: ${callData.status}\n`;
+                        html += `Caller: ${callData.caller?.name || 'Unknown'}\n`;
+                        html += `Callee: ${callData.callee?.name || 'Unknown'} (${callData.callee?.userId || 'No ID'})\n`;
+                        html += `Created: ${callData.createdAt || 'Unknown'}\n`;
+                        html += '---\n';
+                    });
+                    html += '</pre>';
+                    callsDiv.innerHTML = html;
+                } else {
+                    callsDiv.innerHTML = '<div class="status warning">⚠️ No VoIP calls found in database</div>';
+                }
+            } catch (error) {
+                callsDiv.innerHTML = `<div class="status error">❌ Error checking calls: ${error.message}</div>`;
+            }
+        };
+
+        window.createTestCall = async function() {
+            const resultDiv = document.getElementById('test-call-result');
+            const userId = document.getElementById('targetUserId').value;
+            const userName = document.getElementById('targetUserName').value;
+            const userType = document.getElementById('targetUserType').value;
+            
+            if (!userId || !userName) {
+                resultDiv.innerHTML = '<div class="status error">❌ Please enter both User ID and User Name</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="status warning">Creating test call...</div>';
+            
+            try {
+                // Create call record
+                const callsRef = ref(database, 'voip_calls');
+                const newCallRef = push(callsRef);
+                const callId = newCallRef.key;
+                
+                const callData = {
+                    callId,
+                    caller: {
+                        userId: 'admin_dashboard',
+                        userType: 'admin',
+                        name: 'Admin Dashboard (Test)',
+                    },
+                    callee: {
+                        userId: userId,
+                        userType: userType,
+                        name: userName,
+                    },
+                    status: 'ringing',
+                    createdAt: new Date().toISOString(),
+                    reportId: 'test-report-123',
+                    reportType: 'Test Call',
+                };
+                
+                await set(newCallRef, callData);
+                
+                // Create test offer
+                const offerRef = ref(database, `voip_signaling/${callId}/offer`);
+                await set(offerRef, {
+                    sdp: 'test-sdp-offer',
+                    type: 'offer',
+                });
+                
+                resultDiv.innerHTML = `
+                    <div class="status success">
+                        ✅ Test call created successfully!<br>
+                        Call ID: ${callId}<br>
+                        Target User: ${userName} (${userId})<br>
+                        <strong>Check your mobile app now - it should receive this call!</strong>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">❌ Error creating test call: ${error.message}</div>`;
+            }
+        };
+
+        window.startMonitoring = function() {
+            const statusDiv = document.getElementById('monitoring-status');
+            const dataDiv = document.getElementById('monitoring-data');
+            
+            statusDiv.innerHTML = '<div class="status warning">Starting real-time monitoring...</div>';
+            dataDiv.innerHTML = '';
+            
+            // Monitor voip_calls
+            const callsRef = ref(database, 'voip_calls');
+            const callsListener = onValue(callsRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const calls = snapshot.val();
+                    const latestCall = Object.entries(calls).pop();
+                    if (latestCall) {
+                        const [callId, callData] = latestCall;
+                        dataDiv.innerHTML = `
+                            <div class="status success">📞 Latest Call Detected:</div>
+                            <pre>Call ID: ${callId}
+Status: ${callData.status}
+Caller: ${callData.caller?.name || 'Unknown'}
+Callee: ${callData.callee?.name || 'Unknown'} (${callData.callee?.userId || 'No ID'})
+Created: ${callData.createdAt || 'Unknown'}</pre>
+                        `;
+                    }
+                }
+            });
+            
+            monitoringListeners.push(() => off(callsRef, 'value', callsListener));
+            
+            statusDiv.innerHTML = '<div class="status success">✅ Real-time monitoring active</div>';
+        };
+
+        window.stopMonitoring = function() {
+            monitoringListeners.forEach(unsubscribe => unsubscribe());
+            monitoringListeners = [];
+            
+            document.getElementById('monitoring-status').innerHTML = '<div class="status warning">⏹️ Monitoring stopped</div>';
+            document.getElementById('monitoring-data').innerHTML = '';
+        };
+    </script>
+</body>
+</html>

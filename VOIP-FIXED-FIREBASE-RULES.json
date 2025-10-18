@@ -1,0 +1,90 @@
+{
+  "rules": {
+    "admin_dashboard_account": {
+      ".read": true,
+      ".write": true
+    },
+    "civilian": {
+      "civilian account": {
+        ".read": true,
+        ".write": true,
+        "$uid": {
+          ".read": true,
+          ".write": true,
+          "crime reports": {
+            ".read": "$uid === auth.uid",
+            ".write": "$uid === auth.uid"
+          },
+          "notificationSettings": {
+            ".read": "$uid === auth.uid",
+            ".write": "$uid === auth.uid"
+          },
+          "notifications": {
+            ".read": "$uid === auth.uid",
+            ".write": "$uid === auth.uid || (auth != null && (newData.child('type').val() == 'sos_alert' || newData.child('type').val() == 'primary_contact_request' || newData.child('type').val() == 'primary_contact_added' || newData.child('type').val() == 'primary_contact_declined'))"
+          }
+        }
+      },
+      "civilian crime reports": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "police": {
+      "police account": {
+        ".read": true,
+        ".write": true,
+        "$uid": {
+          ".read": true,
+          ".write": true
+        }
+      },
+      "police location": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "$uid === auth.uid"
+        }
+      },
+      "notifications": {
+        ".read": true,
+        ".write": true,
+        "$uid": {
+          ".read": true,
+          ".write": true
+        },
+        "general": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "emergency_contacts": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "auth != null"
+      }
+    },
+    "phone_mappings": {
+      "$phoneNumber": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "voip_calls": {
+      ".read": true,
+      ".write": true,
+      "$callId": {
+        ".indexOn": ["status", "caller/userId", "callee/userId"]
+      }
+    },
+    "voip_signaling": {
+      ".read": true,
+      ".write": true
+    },
+    "test": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

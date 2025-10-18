@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getDatabase, ref, onValue, off, update, get } from 'firebase/database'
+import { getDatabase, ref, onValue, off, update, get, push, set } from 'firebase/database'
 import { app } from '../firebase'
 import './Dashboard.css'
 
@@ -599,15 +599,30 @@ function Dashboard({ onNavigateToReport }) {
     setAlarmEnabled(!alarmEnabled);
   };
 
+
+
+
   // WebRTC Call Functions
   const handleCallClick = async (report) => {
     try {
       setCallLoading(true);
       setCallError('');
       
-      // Get reporter information from the report data
+      // Get admin data and reporter information
       const db = getDatabase(app);
       let targetUser = null;
+      let adminData = null;
+      
+      // Get admin data from Firebase
+      const adminRef = ref(db, 'admin_dashboard_account');
+      const adminSnapshot = await get(adminRef);
+      
+      if (adminSnapshot.exists()) {
+        adminData = adminSnapshot.val();
+        console.log('Admin data retrieved:', adminData);
+      } else {
+        console.warn('No admin data found in Firebase');
+      }
       
       if (report.reporterUid) {
         // Get civilian reporter info from their account
@@ -633,12 +648,17 @@ function Dashboard({ onNavigateToReport }) {
         return;
       }
       
+      // Generate a unique call ID similar to mobile app format
+      const callId = `-${Math.random().toString(36).substr(2, 9)}${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log('Generated new call ID:', callId);
+      
       setCallState({
         isCalling: true,
         isInCall: false,
         callType: 'civilian',
         targetUser,
-        callId: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        callId: callId
       });
       
       setShowCallModal(true);
@@ -647,7 +667,7 @@ function Dashboard({ onNavigateToReport }) {
       playRingingSound();
       
       // Initialize WebRTC call through internet
-      await initializeInternetCall(targetUser, report);
+      await initializeInternetCall(targetUser, report, adminData);
       
     } catch (error) {
       console.error('Error initiating call:', error);
@@ -657,13 +677,30 @@ function Dashboard({ onNavigateToReport }) {
     }
   };
 
-  const initializeInternetCall = async (targetUser, report) => {
+  const initializeInternetCall = async (targetUser, report, adminData) => {
     try {
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia is not supported in this browser');
+      }
+      
+      // Check if WebRTC is supported
+      if (!window.RTCPeerConnection) {
+        throw new Error('WebRTC is not supported in this browser');
+      }
+      
+      console.log('Requesting microphone access...');
+      
       // Get user media (audio only)
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
       });
       
+      console.log('Microphone access granted');
       localStreamRef.current = stream;
       
       // Create peer connection for internet calling
@@ -677,8 +714,10 @@ function Dashboard({ onNavigateToReport }) {
       
       peerConnectionRef.current = new RTCPeerConnection(configuration);
       
+      
       // Add local audio stream to peer connection
       stream.getTracks().forEach(track => {
+        console.log('Adding local track:', track.kind, track.label);
         peerConnectionRef.current.addTrack(track, stream);
       });
       
@@ -697,76 +736,174 @@ function Dashboard({ onNavigateToReport }) {
         setCallState(prev => ({ ...prev, isInCall: true, isCalling: false }));
       };
       
-      // Handle ICE candidates for internet connection
+      // Handle ICE candidates - following mobile app guide structure
       peerConnectionRef.current.onicecandidate = async (event) => {
-        if (event.candidate) {
-          // Send ICE candidate to mobile app via Firebase
+        if (event.candidate && callState.callId) {
+          console.log('Sending ICE candidate:', event.candidate);
           const db = getDatabase(app);
-          const candidateRef = ref(db, `voip_signaling/${targetUser.id}/candidates/${callState.callId}`);
-          await update(candidateRef, {
-            candidate: event.candidate,
-            timestamp: Date.now()
+          const candidateRef = push(ref(db, `voip_signaling/${callState.callId}/iceCandidates/caller`));
+          await set(candidateRef, {
+            candidate: event.candidate.candidate,
+            sdpMLineIndex: event.candidate.sdpMLineIndex,
+            sdpMid: event.candidate.sdpMid,
           });
         }
       };
       
       // Create and set local description
-      const offer = await peerConnectionRef.current.createOffer();
+      const offer = await peerConnectionRef.current.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false,
+      });
       await peerConnectionRef.current.setLocalDescription(offer);
       
-      // Send call offer to mobile app via Firebase
+      // Create call record in Firebase using push() for proper callId generation
       const db = getDatabase(app);
-      const callOfferRef = ref(db, `voip_calls/${targetUser.id}/incoming`);
-      await update(callOfferRef, {
-        callId: callState.callId,
-        offer: offer,
-        from: 'admin_dashboard',
+      const callsRef = ref(db, 'voip_calls');
+      const newCallRef = push(callsRef);
+      const callId = newCallRef.key;
+      
+      console.log('Generated call ID:', callId);
+      
+      // Update call state with new callId
+      setCallState(prev => ({ ...prev, callId: callId }));
+      
+      const callData = {
+        callId,
+        caller: {
+          userId: adminData?.userId || 'admin_dashboard',
+          userType: 'admin',
+          name: adminData?.email || 'Admin Dashboard',
+        },
+        callee: {
+          userId: targetUser.id,
+          userType: targetUser.type || 'civilian',
+          name: targetUser.name,
+        },
+        status: 'ringing',
+        createdAt: new Date().toISOString(),
         reportId: report.id,
         reportType: report.type,
-        timestamp: Date.now(),
-        status: 'ringing'
-      });
+      };
       
-      // Listen for answer from mobile app
-      const answerRef = ref(db, `voip_calls/${targetUser.id}/answer/${callState.callId}`);
+      await set(newCallRef, callData);
+      console.log('Call record created in Firebase');
+      
+      // Send offer through signaling (following mobile app guide)
+      const offerRef = ref(db, `voip_signaling/${callId}/offer`);
+      await set(offerRef, {
+        sdp: offer.sdp,
+        type: offer.type,
+      });
+      console.log('Offer sent through signaling');
+      
+      // Listen for answer from mobile app (following mobile app guide)
+      const answerRef = ref(db, `voip_signaling/${callId}/answer`);
       const answerUnsubscribe = onValue(answerRef, async (snapshot) => {
-        if (snapshot.exists()) {
-          const answerData = snapshot.val();
-          if (answerData.answer) {
-            await peerConnectionRef.current.setRemoteDescription(answerData.answer);
-            
-            // Stop ringing and play connected sound
-            stopRingingSound();
-            playCallConnectedSound();
-            
-            setCallState(prev => ({ ...prev, isInCall: true, isCalling: false }));
-          }
+        const answer = snapshot.val();
+        if (answer && peerConnectionRef.current) {
+          console.log('Received answer from mobile app');
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         }
       });
       
-      // Cleanup listener after call ends
+      // Listen for ICE candidates from callee
+      const calleeCandidatesRef = ref(db, `voip_signaling/${callId}/iceCandidates/callee`);
+      const calleeCandidatesUnsubscribe = onValue(calleeCandidatesRef, (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+          const candidateData = childSnapshot.val();
+          if (candidateData && peerConnectionRef.current) {
+            const candidate = new RTCIceCandidate({
+              candidate: candidateData.candidate,
+              sdpMLineIndex: candidateData.sdpMLineIndex,
+              sdpMid: candidateData.sdpMid,
+            });
+            peerConnectionRef.current.addIceCandidate(candidate).catch((error) => {
+              console.error('Error adding ICE candidate:', error);
+            });
+          }
+        });
+      });
+      
+      // Listen for call status changes
+      const callStatusRef = ref(db, `voip_calls/${callId}`);
+      const callStatusUnsubscribe = onValue(callStatusRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const callData = snapshot.val();
+          console.log('Call status update:', callData);
+          
+          if (callData.status === 'answered') {
+            // Call was answered
+            stopRingingSound();
+            playCallConnectedSound();
+            setCallState(prev => ({ ...prev, isInCall: true, isCalling: false }));
+          } else if (callData.status === 'rejected') {
+            alert('Call was declined');
+            endCall();
+          } else if (callData.status === 'ended') {
+            endCall();
+          }
+        }
+      });
+
+      
+      // Cleanup listeners after 30 seconds
       setTimeout(() => {
         off(answerRef, 'value', answerUnsubscribe);
-      }, 30000); // 30 second timeout
+        off(calleeCandidatesRef, 'value', calleeCandidatesUnsubscribe);
+        off(callStatusRef, 'value', callStatusUnsubscribe);
+      }, 30000);
       
     } catch (error) {
       console.error('Error initializing internet call:', error);
-      setCallError('Failed to access microphone or establish internet connection. Please check permissions.');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to access microphone or establish internet connection. Please check permissions.';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'WebRTC is not supported in this browser. Please use Chrome, Firefox, or Edge.';
+      } else if (error.message.includes('getUserMedia is not supported')) {
+        errorMessage = 'Microphone access is not supported in this browser. Please use a modern browser.';
+      } else if (error.message.includes('WebRTC is not supported')) {
+        errorMessage = 'WebRTC is not supported in this browser. Please use Chrome, Firefox, or Edge.';
+      }
+      
+      setCallError(errorMessage);
     }
   };
 
-  const endCall = () => {
+  const endCall = async () => {
     // Stop ringing sound
     stopRingingSound();
     
     // Play call ended sound
     playCallEndedSound();
     
+    // Update call status in Firebase (following mobile app guide)
+    if (callState.callId) {
+      try {
+        const db = getDatabase(app);
+        const callRef = ref(db, `voip_calls/${callState.callId}`);
+        await update(callRef, {
+          status: 'ended',
+          endedAt: new Date().toISOString()
+        });
+        console.log('Call status updated to ended');
+      } catch (error) {
+        console.error('Error updating call status:', error);
+      }
+    }
+    
     // Stop local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     }
+    
     
     // Close peer connection
     if (peerConnectionRef.current) {
@@ -822,7 +959,7 @@ function Dashboard({ onNavigateToReport }) {
       {newReportNotification && (
         <div className="new-report-notification">
           <div className="notification-content">
-            <div className="notification-icon">🚨</div>
+            <div className="notification-icon">!</div>
             <div className="notification-text">
               <h3>NEW CRIME REPORT</h3>
               <div className="notification-details">
@@ -1322,11 +1459,11 @@ function Dashboard({ onNavigateToReport }) {
                   <p className="target-name">{callState.targetUser.name}</p>
                   <p className="target-status">
                     {callState.targetUser.isOnline ? 
-                      <span className="online-status">🟢 Online</span> : 
-                      <span className="offline-status">🔴 Offline</span>
+                      <span className="online-status">Online</span> : 
+                      <span className="offline-status">Offline</span>
                     }
                   </p>
-                  <p className="target-method">📱 Calling via E-Responde Mobile App</p>
+                  <p className="target-method">Calling via E-Responde Mobile App</p>
                 </div>
               </div>
             )}
@@ -1342,17 +1479,17 @@ function Dashboard({ onNavigateToReport }) {
                 
                 {callState.isInCall && (
                   <div className="call-status">
-                    <div className="call-icon">📞</div>
+                    <div className="call-icon">CALL</div>
                     <p>Call Connected</p>
                     <div className="call-controls">
                       <button 
                         className={`call-btn mute-btn ${isMuted ? 'muted' : ''}`} 
                         onClick={toggleMute}
                       >
-                        {isMuted ? '🔇 Unmute' : '🎤 Mute'}
+                        {isMuted ? 'Unmute' : 'Mute'}
                       </button>
                       <button className="call-btn end-call" onClick={endCall}>
-                        📞 End Call
+                        End Call
                       </button>
                     </div>
                   </div>
@@ -1362,8 +1499,15 @@ function Dashboard({ onNavigateToReport }) {
             
             <div className="call-actions">
               {!callState.isInCall && !callState.isCalling && (
-                <button className="call-btn start-call" onClick={() => initializeInternetCall(callState.targetUser, { id: callState.callId })}>
-                  📞 Start Internet Call
+                <button className="call-btn start-call" onClick={async () => {
+                  // Get admin data for the call
+                  const db = getDatabase(app);
+                  const adminRef = ref(db, 'admin_dashboard_account');
+                  const adminSnapshot = await get(adminRef);
+                  const adminData = adminSnapshot.exists() ? adminSnapshot.val() : null;
+                  await initializeInternetCall(callState.targetUser, { id: callState.callId, type: 'Emergency' }, adminData);
+                }}>
+                  Start Internet Call
                 </button>
               )}
               <button className="call-btn cancel-call" onClick={endCall}>

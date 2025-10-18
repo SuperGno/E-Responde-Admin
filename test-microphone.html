@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Microphone Test</title>
+</head>
+<body>
+    <h1>Microphone Access Test</h1>
+    <button id="testMic">Test Microphone</button>
+    <div id="status"></div>
+    <audio id="audio" autoplay></audio>
+
+    <script>
+        document.getElementById('testMic').addEventListener('click', async () => {
+            const status = document.getElementById('status');
+            const audio = document.getElementById('audio');
+            
+            try {
+                status.innerHTML = 'Requesting microphone access...';
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true 
+                });
+                
+                status.innerHTML = 'SUCCESS: Microphone access granted!';
+                audio.srcObject = stream;
+                
+                // Test if we can create a peer connection
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                });
+                
+                status.innerHTML += '<br>SUCCESS: WebRTC peer connection created successfully!';
+                
+            } catch (error) {
+                status.innerHTML = `ERROR: ${error.message}`;
+                console.error('Microphone test failed:', error);
+            }
+        });
+    </script>
+</body>
+</html>

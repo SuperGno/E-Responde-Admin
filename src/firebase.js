@@ -11,15 +11,38 @@ import { getDatabase } from 'firebase/database'
 import { getFunctions } from 'firebase/functions'
 import { getStorage } from 'firebase/storage'
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://e-responde-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+// Your actual Firebase configuration
+const fallbackConfig = {
+  apiKey: "AIzaSyCT7NToZVd_Su3fbLqegTX6vhO-QLWMfug",
+  authDomain: "e-responde.firebaseapp.com",
+  databaseURL: "https://e-responde-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "e-responde",
+  storageBucket: "e-responde.firebasestorage.app",
+  messagingSenderId: "343953743058",
+  appId: "1:343953743058:web:489c46e1439e7e9fe7e10b",
+  measurementId: "G-MDLC7VPELW"
 }
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || fallbackConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || fallbackConfig.authDomain,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || fallbackConfig.databaseURL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || fallbackConfig.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || fallbackConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || fallbackConfig.appId,
+}
+
+// Log configuration for debugging
+console.log('Firebase configuration:', {
+  apiKey: firebaseConfig.apiKey ? 'Set' : 'Missing',
+  authDomain: firebaseConfig.authDomain ? 'Set' : 'Missing',
+  databaseURL: firebaseConfig.databaseURL ? 'Set' : 'Missing',
+  projectId: firebaseConfig.projectId ? 'Set' : 'Missing',
+  storageBucket: firebaseConfig.storageBucket ? 'Set' : 'Missing',
+  messagingSenderId: firebaseConfig.messagingSenderId ? 'Set' : 'Missing',
+  appId: firebaseConfig.appId ? 'Set' : 'Missing',
+})
 
 // Initialize Firebase only once in the app lifecycle
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)

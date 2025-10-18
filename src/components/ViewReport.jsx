@@ -262,11 +262,11 @@ Focus on practical admin actions that address the specific details mentioned in 
   // Helper function to attempt to convert mobile file paths to accessible URLs
   const tryConvertMobileFileToUrl = async (filePath) => {
     try {
-      console.log(`🔍 Starting Firebase Storage lookup for: ${filePath}`);
+      console.log(`Starting Firebase Storage lookup for: ${filePath}`);
       
       // Extract filename from the path
       const filename = filePath.split('/').pop();
-      console.log(`📁 Extracted filename: ${filename}`);
+      console.log(`Extracted filename: ${filename}`);
       
       // Try to construct a potential Firebase Storage path
       // This assumes the mobile app might have uploaded to a specific path
@@ -281,13 +281,13 @@ Focus on practical admin actions that address the specific details mentioned in 
         filename // Just the filename
       ];
       
-      console.log(`🎯 Will try ${potentialPaths.length} potential paths`);
+      console.log(`Will try ${potentialPaths.length} potential paths`);
       
       // Try each potential path with timeout
       for (let i = 0; i < potentialPaths.length; i++) {
         const path = potentialPaths[i];
         try {
-          console.log(`🔄 [${i + 1}/${potentialPaths.length}] Trying Firebase Storage path: ${path}`);
+          console.log(`[${i + 1}/${potentialPaths.length}] Trying Firebase Storage path: ${path}`);
           
           // Add timeout to prevent hanging
           const timeoutPromise = new Promise((_, reject) => 
@@ -298,10 +298,10 @@ Focus on practical admin actions that address the specific details mentioned in 
           const urlPromise = getDownloadURL(imageRef);
           
           const url = await Promise.race([urlPromise, timeoutPromise]);
-          console.log(`✅ Found image at path: ${path}`);
+          console.log(`Found image at path: ${path}`);
           return url;
         } catch (err) {
-          console.log(`❌ [${i + 1}/${potentialPaths.length}] Failed to find image at path: ${path}`, err.message);
+          console.log(`[${i + 1}/${potentialPaths.length}] Failed to find image at path: ${path}`, err.message);
           // Continue to next path
           continue;
         }
@@ -401,7 +401,7 @@ Focus on practical admin actions that address the specific details mentioned in 
         <div className="file-info">
           <small>File: {media.split('/').pop()}</small>
           <div className="file-note">
-            <small>📱 {error || 'This image was captured on a mobile device and is not accessible from the web interface.'}</small>
+            <small>Mobile: {error || 'This image was captured on a mobile device and is not accessible from the web interface.'}</small>
             <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280' }}>
               <strong>Note:</strong> The mobile app captured this image but didn't upload it to cloud storage. 
               To view the image, check the mobile device or contact the reporter.
@@ -419,7 +419,7 @@ Focus on practical admin actions that address the specific details mentioned in 
     
     // Check for base64 data URLs (including those stored in Realtime Database)
     if (media.startsWith('data:image/')) {
-      console.log(`✅ Detected base64 image for photo ${index + 1}`);
+      console.log(`Detected base64 image for photo ${index + 1}`);
       return (
         <div className="evidence-photo">
           <img 
@@ -431,7 +431,7 @@ Focus on practical admin actions that address the specific details mentioned in 
               e.target.nextSibling.style.display = 'flex';
             }}
             onLoad={() => {
-              console.log(`✅ Base64 image ${index + 1} loaded successfully from Realtime Database`);
+              console.log(`Base64 image ${index + 1} loaded successfully from Realtime Database`);
             }}
           />
           <div className="evidence-placeholder" style={{ display: 'none' }}>
@@ -632,7 +632,7 @@ Focus on practical admin actions that address the specific details mentioned in 
                 marginBottom: '1rem',
                 color: '#92400e'
               }}>
-                <strong>📱 Mobile App Images:</strong> Some images were captured on mobile devices. The system is checking if they are stored as base64 data in the database or need to be retrieved from cloud storage.
+                <strong>Mobile App Images:</strong> Some images were captured on mobile devices. The system is checking if they are stored as base64 data in the database or need to be retrieved from cloud storage.
               </div>
             )}
             <div className="evidence-grid">

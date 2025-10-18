@@ -1,14 +1,14 @@
-# 🔮 ARIMA Forecasting API Integration Guide
+# ARIMA Forecasting API Integration Guide
 
-## 🎯 Overview
+## Overview
 Your E-Responde Admin dashboard now includes ARIMA crime forecasting capabilities! The Analytics tab has been enhanced with a complete forecasting interface that connects to your local ARIMA API.
 
-## 📁 Files Updated
-- ✅ `src/components/Analytics.jsx` - Complete forecasting interface
-- ✅ `src/App.css` - All forecasting styles and responsive design
-- ✅ `start-arima-api.bat` - Easy API startup script
+## Files Updated
+- `src/components/Analytics.jsx` - Complete forecasting interface
+- `src/App.css` - All forecasting styles and responsive design
+- `start-arima-api.bat` - Easy API startup script
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Step 1: Start Your ARIMA API
 **Option A: Use the Batch File (Easiest)**
@@ -36,33 +36,33 @@ Your app will be available at: `http://localhost:5174/`
 4. **Select** a crime type and location from the dropdowns
 5. **Watch** the forecast chart and metrics appear!
 
-## 🔗 API Endpoints Used
+## API Endpoints Used
 Your Analytics component connects to these endpoints:
 
 - `GET /api/crime_types` - Fetches available crime types
 - `GET /api/locations` - Fetches available locations  
 - `GET /api/visualization` - Gets forecast data with chart formatting
 
-## 🎨 Features Included
+## Features Included
 
-### 📊 Interactive Chart
+### Interactive Chart
 - **Historical Data** (blue bars) - Past crime data
 - **Forecast Data** (green bars) - ARIMA predictions with confidence levels
 - **Hover Tooltips** - See exact values and dates
 - **Responsive Design** - Works on all screen sizes
 
-### 🎛️ Controls
+### Controls
 - **Crime Type Selector** - Choose from available crime types
 - **Location Selector** - Choose from available locations
 - **Forecast Period** - 6, 12, 18, or 24 months
 - **Refresh Button** - Manually update data
 
-### 📈 Metrics Display
+### Metrics Display
 - **Trend Analysis** - Shows if crime is increasing/decreasing
 - **Model Accuracy** - ARIMA model performance
 - **Next Week Forecast** - Short-term prediction
 
-### 🎯 Smart Features
+### Smart Features
 - **Auto-loading** - Data loads when you select crime type + location
 - **Error Handling** - Shows helpful error messages
 - **Loading States** - Visual feedback during API calls
@@ -88,7 +88,7 @@ Your Analytics component connects to these endpoints:
 3. Should show error message with retry button
 4. Restart API and click retry - should work again
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### API Not Starting
 - Check if Python is installed: `python --version`
@@ -109,31 +109,31 @@ Your Analytics component connects to these endpoints:
 - Look for JavaScript errors in browser console
 - Try refreshing the page
 
-## 📱 Responsive Design
+## Responsive Design
 The forecasting interface is fully responsive:
 - **Desktop** - Full chart with all controls visible
 - **Tablet** - Stacked layout with smaller chart
 - **Mobile** - Single column layout with compact chart
 
-## 🎨 Customization
+## Customization
 You can easily customize:
 - **Colors** - Edit the CSS variables in App.css
 - **Chart Height** - Modify `.chart-bars` height
 - **API URL** - Change `API_BASE_URL` in Analytics.jsx
 - **Forecast Periods** - Add more options to the months dropdown
 
-## 🚀 Next Steps
+## Next Steps
 1. **Test thoroughly** with different crime types and locations
 2. **Customize styling** to match your brand
 3. **Add more metrics** if needed
 4. **Deploy** both API and React app when ready
 
-## 📞 Support
+## Support
 If you encounter any issues:
 1. Check the browser console for errors
 2. Verify both servers are running
 3. Test the API endpoints directly
 4. Check the troubleshooting section above
 
-Your ARIMA forecasting integration is now complete and ready to use! 🎉
+Your ARIMA forecasting integration is now complete and ready to use!
 

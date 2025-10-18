@@ -17,6 +17,7 @@ function Dispatch() {
     notes: '',
     estimatedTime: ''
   })
+  const [isDispatching, setIsDispatching] = useState(false)
 
   // Calculate distance between two coordinates using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -149,10 +150,57 @@ function Dispatch() {
     }
   }
 
+  // Test Firebase connection
+  const testFirebaseConnection = async () => {
+    try {
+      console.log('Testing Firebase connection...')
+      console.log('Firebase app:', app)
+      
+      const db = getDatabase(app)
+      console.log('Firebase database instance:', db)
+      
+      if (!db) {
+        throw new Error('Database instance is null')
+      }
+      
+      // Test read access to a simple path
+      const testRef = ref(db, 'test')
+      console.log('Test reference created:', testRef.toString())
+      
+      const snapshot = await get(testRef)
+      console.log('Firebase connection test successful - snapshot:', snapshot.exists())
+      return true
+    } catch (err) {
+      console.error('Firebase connection test failed:', err)
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        name: err.name
+      })
+      
+      // Check if it's a configuration issue
+      if (err.message.includes('Firebase: No Firebase App') || 
+          err.message.includes('Firebase: Error (auth/invalid-api-key)') ||
+          err.message.includes('Firebase: Error (auth/invalid-credential)')) {
+        console.error('Firebase configuration error detected')
+      }
+      
+      return false
+    }
+  }
+
   useEffect(() => {
     const fetchReports = async () => {
       try {
         setLoading(true)
+        
+        // Test Firebase connection first
+        const connectionOk = await testFirebaseConnection()
+        if (!connectionOk) {
+          setError('Firebase connection failed. Please check your configuration.')
+          return
+        }
+
         const db = getDatabase(app)
         const reportsRef = ref(db, 'civilian/civilian crime reports')
         const snapshot = await get(reportsRef)
@@ -227,24 +275,117 @@ function Dispatch() {
       return
     }
 
+    if (isDispatching) {
+      alert('Dispatch is already in progress. Please wait...')
+      return
+    }
+
+    setIsDispatching(true)
+
     try {
+      console.log('Starting dispatch process...', {
+        selectedReport: selectedReport,
+        dispatchData: dispatchData,
+        patrolUnitsCount: patrolUnits.length
+      })
+
       const db = getDatabase(app)
-      const reportRef = ref(db, `civilian/civilian crime reports/${selectedReport.id}`)
       
+      // Validate database connection
+      if (!db) {
+        throw new Error('Database connection failed')
+      }
+
+      const reportRef = ref(db, `civilian/civilian crime reports/${selectedReport.id}`)
+      console.log('Report reference created:', reportRef.toString())
+      
+      // Find the selected police unit details
+      const selectedUnit = patrolUnits.find(unit => unit.id === dispatchData.unit)
+      if (!selectedUnit) {
+        console.error('Selected police unit not found:', {
+          dispatchDataUnit: dispatchData.unit,
+          availableUnits: patrolUnits.map(u => ({ id: u.id, name: `${u.firstName} ${u.lastName}` }))
+        })
+        alert('Selected police unit not found. Please refresh and try again.')
+        return
+      }
+
+      console.log('Selected police unit found:', selectedUnit)
+
+      const dispatchInfo = {
+        unit: dispatchData.unit,
+        unitName: `${selectedUnit.policeRank} ${selectedUnit.firstName} ${selectedUnit.lastName}`,
+        unitEmail: selectedUnit.email,
+        priority: dispatchData.priority,
+        notes: dispatchData.notes,
+        estimatedTime: dispatchData.estimatedTime,
+        dispatchedAt: new Date().toISOString(),
+        dispatchedBy: 'admin@e-responde.com'
+      }
+
       const updates = {
         status: 'Dispatched',
-        dispatchInfo: {
-          unit: dispatchData.unit,
+        dispatchInfo: dispatchInfo
+      }
+
+      console.log('Updating crime report with:', updates)
+
+      // Update the crime report
+      await update(reportRef, updates)
+      console.log('Crime report updated successfully')
+      
+      // Create notification for the dispatched police officer
+      const notificationId = `dispatch_${selectedReport.id}_${Date.now()}`
+      const notificationRef = ref(db, `police/notifications/${selectedUnit.id}/${notificationId}`)
+      
+      const notificationData = {
+        id: notificationId,
+        type: 'dispatch_assignment',
+        title: 'New Dispatch Assignment',
+        message: `You have been assigned to respond to a ${selectedReport.crimeType || 'emergency'} report.`,
+        reportId: selectedReport.id,
+        reportDetails: {
+          crimeType: selectedReport.crimeType || 'Emergency',
+          location: selectedReport.location?.address || 'Location not available',
+          reporterName: selectedReport.reporterName || 'Anonymous',
+          description: selectedReport.description || 'No description provided',
           priority: dispatchData.priority,
-          notes: dispatchData.notes,
           estimatedTime: dispatchData.estimatedTime,
-          dispatchedAt: new Date().toISOString(),
-          dispatchedBy: 'admin@e-responde.com'
+          notes: dispatchData.notes
+        },
+        dispatchInfo: dispatchInfo,
+        createdAt: new Date().toISOString(),
+        isRead: false,
+        isActive: true
+      }
+
+      console.log('Creating notification for police officer:', {
+        notificationRef: notificationRef.toString(),
+        notificationData: notificationData
+      })
+
+      await update(notificationRef, notificationData)
+      console.log('Police notification created successfully')
+
+      // Also create a general notification in the police notifications section
+      const generalNotificationRef = ref(db, `police/notifications/general/${notificationId}`)
+      const generalNotificationData = {
+        ...notificationData,
+        assignedOfficer: {
+          id: selectedUnit.id,
+          name: `${selectedUnit.policeRank} ${selectedUnit.firstName} ${selectedUnit.lastName}`,
+          email: selectedUnit.email
         }
       }
 
-      await update(reportRef, updates)
-      
+      console.log('Creating general notification:', {
+        generalNotificationRef: generalNotificationRef.toString(),
+        generalNotificationData: generalNotificationData
+      })
+
+      await update(generalNotificationRef, generalNotificationData)
+      console.log('General notification created successfully')
+
       // Update local state
       setReports(prev => prev.filter(report => report.id !== selectedReport.id))
       handleCloseModal()
@@ -256,10 +397,38 @@ function Dispatch() {
         estimatedTime: ''
       })
       
-      alert('Report dispatched successfully!')
+      // Log the notification creation for debugging
+      console.log('Dispatch completed successfully:', {
+        officerId: selectedUnit.id,
+        officerName: `${selectedUnit.policeRank} ${selectedUnit.firstName} ${selectedUnit.lastName}`,
+        notificationId: notificationId,
+        reportId: selectedReport.id
+      })
+
+      alert(`Report dispatched successfully! ${selectedUnit.policeRank} ${selectedUnit.firstName} ${selectedUnit.lastName} has been notified.`)
     } catch (err) {
       console.error('Error dispatching report:', err)
-      alert('Failed to dispatch report')
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      })
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to dispatch report'
+      if (err.code === 'PERMISSION_DENIED') {
+        errorMessage = 'Permission denied. Please check your Firebase security rules.'
+      } else if (err.code === 'UNAVAILABLE') {
+        errorMessage = 'Database is currently unavailable. Please try again later.'
+      } else if (err.code === 'NETWORK_ERROR') {
+        errorMessage = 'Network error. Please check your internet connection.'
+      } else if (err.message) {
+        errorMessage = `Dispatch failed: ${err.message}`
+      }
+      
+      alert(errorMessage)
+    } finally {
+      setIsDispatching(false)
     }
   }
 
@@ -441,7 +610,7 @@ function Dispatch() {
                     marginBottom: '1rem' 
                   }}>
                     <h4 style={{ margin: '0 0 0.5rem 0', color: '#0c4a6e', fontSize: '0.9rem' }}>
-                      🎯 Recommended Patrol Units (Sorted by Distance)
+                      Recommended Patrol Units (Sorted by Distance)
                     </h4>
                     <div style={{ fontSize: '0.8rem', color: '#0369a1' }}>
                       {sortedPatrolUnits.slice(0, 3).map((unit, index) => (
@@ -462,7 +631,7 @@ function Dispatch() {
                   <label>Response Unit *</label>
                   {sortedPatrolUnits.length > 0 && sortedPatrolUnits[0].distance !== undefined && (
                     <small style={{ color: '#10b981', fontSize: '0.8rem', marginBottom: '0.5rem', display: 'block' }}>
-                      🎯 Units sorted by proximity to crime location
+                      Units sorted by proximity to crime location
                     </small>
                   )}
                   <select
@@ -483,7 +652,7 @@ function Dispatch() {
                       
                       return (
                         <option key={unit.id} value={unit.id}>
-                          {isNearest ? '🎯 ' : ''}{unit.policeRank} {unit.firstName} {unit.lastName} - {unit.status}
+                          {isNearest ? '[NEAREST] ' : ''}{unit.policeRank} {unit.firstName} {unit.lastName} - {unit.status}
                           {isUsingDefaultLocation ? ' (Default Manila location)' : distanceText}
                           {isNearest ? ' - NEAREST' : ''}
                         </option>
@@ -536,8 +705,9 @@ function Dispatch() {
               <button 
                 className="btn-dispatch"
                 onClick={handleDispatchSubmit}
+                disabled={isDispatching}
               >
-                Dispatch Unit
+                {isDispatching ? 'Dispatching...' : 'Dispatch Unit'}
               </button>
             </div>
           </div>

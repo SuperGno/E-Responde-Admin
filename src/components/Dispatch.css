@@ -391,9 +391,16 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.btn-dispatch:hover {
+.btn-dispatch:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(75, 85, 99, 0.4);
+}
+
+.btn-dispatch:disabled {
+  background: #374151;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .loading,

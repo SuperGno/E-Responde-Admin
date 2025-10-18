@@ -1,4 +1,4 @@
-# 🔥 Firebase Setup Guide
+# Firebase Setup Guide
 
 ## Fix the Database Region Warning
 
@@ -23,7 +23,7 @@ VITE_FIREBASE_APP_ID=your_app_id_here
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project: **e-responde**
-3. Click the gear icon ⚙️ → **Project Settings**
+3. Click the gear icon → **Project Settings**
 4. Scroll down to **"Your apps"** section
 5. Click on the web app icon `</>`
 6. Copy the config values and replace the placeholders in your `.env` file

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { realtimeDb } from '../firebase'
 import { ref, set, get } from 'firebase/database'
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from 'firebase/auth'
 import './Login.css'
 
 function Login({ onLoginSuccess }) {
@@ -59,20 +60,37 @@ function Login({ onLoginSuccess }) {
         return
       }
 
-      // Hash the password
+      // Step 1: Create Firebase Authentication user
+      const auth = getAuth()
+      const userCredential = await createUserWithEmailAndPassword(auth, createEmail, createPassword)
+      const user = userCredential.user
+      
+      console.log('Firebase Auth user created:', user.uid)
+
+      // Step 2: Update the user's display name
+      await updateProfile(user, {
+        displayName: 'Admin Dashboard'
+      })
+
+      // Step 3: Hash the password for storage
       const hashedPassword = await hashPassword(createPassword)
 
-      // Create account data
+      // Step 4: Create account data for Realtime Database
       const accountData = {
+        userId: user.uid, // Use Firebase Auth UID as userId
         email: createEmail,
         password: hashedPassword,
         createdAt: new Date().toISOString(),
-        role: 'admin'
+        role: 'admin',
+        authUid: user.uid, // Link to Firebase Auth user
+        displayName: 'Admin Dashboard'
       }
 
-      // Save directly to Firebase Realtime Database under admin_dashboard_account
+      // Step 5: Save to Firebase Realtime Database under admin_dashboard_account
       const accountRef = ref(realtimeDb, 'admin_dashboard_account')
       await set(accountRef, accountData)
+
+      console.log('Admin account created in Realtime Database')
 
       setCreateSuccess('Account created successfully! You can now login with your credentials.')
       
@@ -91,7 +109,13 @@ function Login({ onLoginSuccess }) {
       console.error('Account creation error:', err)
       
       // More specific error messages
-      if (err.code === 'PERMISSION_DENIED') {
+      if (err.code === 'auth/email-already-in-use') {
+        setCreateError('This email is already registered. Please use a different email or try logging in.')
+      } else if (err.code === 'auth/weak-password') {
+        setCreateError('Password is too weak. Please choose a stronger password.')
+      } else if (err.code === 'auth/invalid-email') {
+        setCreateError('Invalid email address. Please enter a valid email.')
+      } else if (err.code === 'PERMISSION_DENIED') {
         setCreateError('Permission denied. Please check your Firebase rules.')
       } else if (err.code === 'UNAVAILABLE') {
         setCreateError('Firebase service is unavailable. Please try again later.')
@@ -134,46 +158,58 @@ function Login({ onLoginSuccess }) {
         return
       }
 
-      // Get admin account data from Realtime Database
+      // Use Firebase Authentication for login
+      const auth = getAuth()
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+      
+      console.log('Admin logged in:', user.uid)
+
+      // Verify this is an admin account by checking Realtime Database
       const adminRef = ref(realtimeDb, 'admin_dashboard_account')
       const snapshot = await get(adminRef)
       
       if (!snapshot.exists()) {
-        setError('No admin accounts found. Please create an account first.')
+        setError('Admin account not found in database.')
         setLoading(false)
         return
       }
 
       const adminData = snapshot.val()
 
-      // Check if email matches
-      if (adminData.email.toLowerCase() !== email.toLowerCase()) {
-        setError('Invalid email or password.')
+      // Check if the logged-in user is the admin
+      if (adminData.userId !== user.uid) {
+        setError('This account is not authorized as an admin.')
         setLoading(false)
         return
       }
 
-      // Hash the provided password and compare with stored hash
-      const hashedPassword = await hashPassword(password)
-
-      if (adminData.password !== hashedPassword) {
-        setError('Invalid email or password.')
-        setLoading(false)
-        return
-      }
       onLoginSuccess()
 
     } catch (err) {
       console.error('Login error:', err)
       
-      if (err.code === 'PERMISSION_DENIED') {
+      // Firebase Authentication error codes
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email address.')
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password. Please try again.')
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address.')
+      } else if (err.code === 'auth/user-disabled') {
+        setError('This account has been disabled.')
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many failed login attempts. Please try again later.')
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection.')
+      } else if (err.code === 'PERMISSION_DENIED') {
         setError('Permission denied. Please check your Firebase rules.')
       } else if (err.code === 'UNAVAILABLE') {
         setError('Firebase service is unavailable. Please try again later.')
       } else if (err.message.includes('network')) {
         setError('Network error. Please check your internet connection.')
       } else {
-        setError('Login failed. Please check your credentials and try again.')
+        setError(`Login failed: ${err.message || 'Unknown error'}`)
       }
     } finally {
       setLoading(false)

@@ -60,7 +60,7 @@
     </style>
 </head>
 <body>
-    <h1>🔧 ARIMA API Connection Test</h1>
+    <h1>ARIMA API Connection Test</h1>
     <p>Use this tool to test if your ARIMA API is running and accessible.</p>
 
     <div class="test-section">
@@ -106,14 +106,14 @@
                 const response = await fetch(`${API_BASE_URL}/`);
                 if (response.ok) {
                     resultDiv.className = 'result success';
-                    resultDiv.textContent = '✅ API is running and accessible!\n\nStatus: ' + response.status + '\nURL: ' + API_BASE_URL;
+                    resultDiv.textContent = 'SUCCESS: API is running and accessible!\n\nStatus: ' + response.status + '\nURL: ' + API_BASE_URL;
                 } else {
                     resultDiv.className = 'result warning';
-                    resultDiv.textContent = '⚠️ API responded but with status: ' + response.status;
+                    resultDiv.textContent = 'WARNING: API responded but with status: ' + response.status;
                 }
             } catch (error) {
                 resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ Connection failed: ' + error.message + '\n\nMake sure your ARIMA API is running on port 5000.';
+                resultDiv.textContent = 'ERROR: Connection failed: ' + error.message + '\n\nMake sure your ARIMA API is running on port 5000.';
             }
         }
 
@@ -129,14 +129,14 @@
                 
                 if (response.ok && data.crime_types) {
                     resultDiv.className = 'result success';
-                    resultDiv.textContent = '✅ Crime types loaded successfully!\n\nCount: ' + data.crime_types.length + '\n\nTypes:\n' + data.crime_types.join('\n');
+                    resultDiv.textContent = 'SUCCESS: Crime types loaded successfully!\n\nCount: ' + data.crime_types.length + '\n\nTypes:\n' + data.crime_types.join('\n');
                 } else {
                     resultDiv.className = 'result error';
-                    resultDiv.textContent = '❌ Invalid response format:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.textContent = 'ERROR: Invalid response format:\n' + JSON.stringify(data, null, 2);
                 }
             } catch (error) {
                 resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ Error: ' + error.message;
+                resultDiv.textContent = 'ERROR: Error: ' + error.message;
             }
         }
 
@@ -152,14 +152,14 @@
                 
                 if (response.ok && data.locations) {
                     resultDiv.className = 'result success';
-                    resultDiv.textContent = '✅ Locations loaded successfully!\n\nCount: ' + data.locations.length + '\n\nLocations:\n' + data.locations.join('\n');
+                    resultDiv.textContent = 'SUCCESS: Locations loaded successfully!\n\nCount: ' + data.locations.length + '\n\nLocations:\n' + data.locations.join('\n');
                 } else {
                     resultDiv.className = 'result error';
-                    resultDiv.textContent = '❌ Invalid response format:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.textContent = 'ERROR: Invalid response format:\n' + JSON.stringify(data, null, 2);
                 }
             } catch (error) {
                 resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ Error: ' + error.message;
+                resultDiv.textContent = 'ERROR: Error: ' + error.message;
             }
         }
 
@@ -182,14 +182,14 @@
                 
                 if (response.ok) {
                     resultDiv.className = 'result success';
-                    resultDiv.textContent = '✅ Visualization endpoint working!\n\nResponse structure:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.textContent = 'SUCCESS: Visualization endpoint working!\n\nResponse structure:\n' + JSON.stringify(data, null, 2);
                 } else {
                     resultDiv.className = 'result error';
-                    resultDiv.textContent = '❌ Error response:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.textContent = 'ERROR: Error response:\n' + JSON.stringify(data, null, 2);
                 }
             } catch (error) {
                 resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ Error: ' + error.message;
+                resultDiv.textContent = 'ERROR: Error: ' + error.message;
             }
         }
 
@@ -205,14 +205,14 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/`);
                 if (response.ok) {
-                    diagnosis += '✅ API Connection: OK\n';
+                    diagnosis += 'SUCCESS: API Connection: OK\n';
                 } else {
-                    diagnosis += '⚠️ API Connection: Status ' + response.status + '\n';
+                    diagnosis += 'WARNING: API Connection: Status ' + response.status + '\n';
                 }
             } catch (error) {
-                diagnosis += '❌ API Connection: FAILED - ' + error.message + '\n';
+                diagnosis += 'ERROR: API Connection: FAILED - ' + error.message + '\n';
                 resultDiv.className = 'result error';
-                resultDiv.textContent = diagnosis + '\n\n🔧 SOLUTION: Start your ARIMA API server:\ncd "c:\\Users\\Gno\\Desktop\\aiko\\arima_forcasting\\app"\npython run_api.py';
+                resultDiv.textContent = diagnosis + '\n\nSOLUTION: SOLUTION: Start your ARIMA API server:\ncd "c:\\Users\\Gno\\Desktop\\aiko\\arima_forcasting\\app"\npython run_api.py';
                 return;
             }
 
@@ -221,12 +221,12 @@
                 const response = await fetch(`${API_BASE_URL}/api/crime_types`);
                 const data = await response.json();
                 if (data.crime_types && data.crime_types.length > 0) {
-                    diagnosis += '✅ Crime Types: OK (' + data.crime_types.length + ' types)\n';
+                    diagnosis += 'SUCCESS: Crime Types: OK (' + data.crime_types.length + ' types)\n';
                 } else {
-                    diagnosis += '❌ Crime Types: No data returned\n';
+                    diagnosis += 'ERROR: Crime Types: No data returned\n';
                 }
             } catch (error) {
-                diagnosis += '❌ Crime Types: FAILED - ' + error.message + '\n';
+                diagnosis += 'ERROR: Crime Types: FAILED - ' + error.message + '\n';
             }
 
             // Test 3: Locations
@@ -234,12 +234,12 @@
                 const response = await fetch(`${API_BASE_URL}/api/locations`);
                 const data = await response.json();
                 if (data.locations && data.locations.length > 0) {
-                    diagnosis += '✅ Locations: OK (' + data.locations.length + ' locations)\n';
+                    diagnosis += 'SUCCESS: Locations: OK (' + data.locations.length + ' locations)\n';
                 } else {
-                    diagnosis += '❌ Locations: No data returned\n';
+                    diagnosis += 'ERROR: Locations: No data returned\n';
                 }
             } catch (error) {
-                diagnosis += '❌ Locations: FAILED - ' + error.message + '\n';
+                diagnosis += 'ERROR: Locations: FAILED - ' + error.message + '\n';
             }
 
             // Test 4: Visualization
@@ -252,16 +252,16 @@
                 const response = await fetch(`${API_BASE_URL}/api/visualization?${params}`);
                 const data = await response.json();
                 if (data.forecast_data) {
-                    diagnosis += '✅ Visualization: OK\n';
+                    diagnosis += 'SUCCESS: Visualization: OK\n';
                 } else {
-                    diagnosis += '❌ Visualization: No forecast data\n';
+                    diagnosis += 'ERROR: Visualization: No forecast data\n';
                 }
             } catch (error) {
-                diagnosis += '❌ Visualization: FAILED - ' + error.message + '\n';
+                diagnosis += 'ERROR: Visualization: FAILED - ' + error.message + '\n';
             }
 
             resultDiv.className = 'result success';
-            resultDiv.textContent = diagnosis + '\n\n🎯 NEXT STEPS:\n1. If any tests failed, check your ARIMA API server\n2. Open browser console (F12) in your React app\n3. Check for error messages when selecting crime type/location';
+            resultDiv.textContent = diagnosis + '\n\nNEXT STEPS: NEXT STEPS:\n1. If any tests failed, check your ARIMA API server\n2. Open browser console (F12) in your React app\n3. Check for error messages when selecting crime type/location';
         }
     </script>
 </body>
