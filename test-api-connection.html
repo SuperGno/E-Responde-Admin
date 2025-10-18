@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIMA API Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 ARIMA API Connection Test</h1>
+    <p>Use this tool to test if your ARIMA API is running and accessible.</p>
+
+    <div class="test-section">
+        <h2>1. Test API Connection</h2>
+        <button class="test-button" onclick="testConnection()">Test API Connection</button>
+        <div id="connection-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Crime Types Endpoint</h2>
+        <button class="test-button" onclick="testCrimeTypes()">Test /api/crime_types</button>
+        <div id="crime-types-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Locations Endpoint</h2>
+        <button class="test-button" onclick="testLocations()">Test /api/locations</button>
+        <div id="locations-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test Visualization Endpoint</h2>
+        <button class="test-button" onclick="testVisualization()">Test /api/visualization</button>
+        <div id="visualization-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Quick Diagnosis</h2>
+        <button class="test-button" onclick="runDiagnosis()">Run Full Diagnosis</button>
+        <div id="diagnosis-result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing connection...';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/`);
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ API is running and accessible!\n\nStatus: ' + response.status + '\nURL: ' + API_BASE_URL;
+                } else {
+                    resultDiv.className = 'result warning';
+                    resultDiv.textContent = '⚠️ API responded but with status: ' + response.status;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Connection failed: ' + error.message + '\n\nMake sure your ARIMA API is running on port 5000.';
+            }
+        }
+
+        async function testCrimeTypes() {
+            const resultDiv = document.getElementById('crime-types-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing crime types endpoint...';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/crime_types`);
+                const data = await response.json();
+                
+                if (response.ok && data.crime_types) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Crime types loaded successfully!\n\nCount: ' + data.crime_types.length + '\n\nTypes:\n' + data.crime_types.join('\n');
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ Invalid response format:\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        async function testLocations() {
+            const resultDiv = document.getElementById('locations-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing locations endpoint...';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/locations`);
+                const data = await response.json();
+                
+                if (response.ok && data.locations) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Locations loaded successfully!\n\nCount: ' + data.locations.length + '\n\nLocations:\n' + data.locations.join('\n');
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ Invalid response format:\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        async function testVisualization() {
+            const resultDiv = document.getElementById('visualization-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing visualization endpoint...';
+
+            try {
+                // Test with default parameters
+                const params = new URLSearchParams({
+                    crime_type: 'Assault',
+                    location: 'Barangay 101 Zone 8',
+                    months: '12'
+                });
+
+                const response = await fetch(`${API_BASE_URL}/api/visualization?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Visualization endpoint working!\n\nResponse structure:\n' + JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ Error response:\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        async function runDiagnosis() {
+            const resultDiv = document.getElementById('diagnosis-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Running full diagnosis...\n\n';
+
+            let diagnosis = '';
+
+            // Test 1: Basic connection
+            try {
+                const response = await fetch(`${API_BASE_URL}/`);
+                if (response.ok) {
+                    diagnosis += '✅ API Connection: OK\n';
+                } else {
+                    diagnosis += '⚠️ API Connection: Status ' + response.status + '\n';
+                }
+            } catch (error) {
+                diagnosis += '❌ API Connection: FAILED - ' + error.message + '\n';
+                resultDiv.className = 'result error';
+                resultDiv.textContent = diagnosis + '\n\n🔧 SOLUTION: Start your ARIMA API server:\ncd "c:\\Users\\Gno\\Desktop\\aiko\\arima_forcasting\\app"\npython run_api.py';
+                return;
+            }
+
+            // Test 2: Crime types
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/crime_types`);
+                const data = await response.json();
+                if (data.crime_types && data.crime_types.length > 0) {
+                    diagnosis += '✅ Crime Types: OK (' + data.crime_types.length + ' types)\n';
+                } else {
+                    diagnosis += '❌ Crime Types: No data returned\n';
+                }
+            } catch (error) {
+                diagnosis += '❌ Crime Types: FAILED - ' + error.message + '\n';
+            }
+
+            // Test 3: Locations
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/locations`);
+                const data = await response.json();
+                if (data.locations && data.locations.length > 0) {
+                    diagnosis += '✅ Locations: OK (' + data.locations.length + ' locations)\n';
+                } else {
+                    diagnosis += '❌ Locations: No data returned\n';
+                }
+            } catch (error) {
+                diagnosis += '❌ Locations: FAILED - ' + error.message + '\n';
+            }
+
+            // Test 4: Visualization
+            try {
+                const params = new URLSearchParams({
+                    crime_type: 'Assault',
+                    location: 'Barangay 101 Zone 8',
+                    months: '12'
+                });
+                const response = await fetch(`${API_BASE_URL}/api/visualization?${params}`);
+                const data = await response.json();
+                if (data.forecast_data) {
+                    diagnosis += '✅ Visualization: OK\n';
+                } else {
+                    diagnosis += '❌ Visualization: No forecast data\n';
+                }
+            } catch (error) {
+                diagnosis += '❌ Visualization: FAILED - ' + error.message + '\n';
+            }
+
+            resultDiv.className = 'result success';
+            resultDiv.textContent = diagnosis + '\n\n🎯 NEXT STEPS:\n1. If any tests failed, check your ARIMA API server\n2. Open browser console (F12) in your React app\n3. Check for error messages when selecting crime type/location';
+        }
+    </script>
+</body>
+</html>
+
