@@ -1,153 +1,224 @@
 import { useState, useEffect } from 'react'
-import { getDatabase, ref, get } from 'firebase/database'
+import { getDatabase, ref, get, set, push } from 'firebase/database'
 import { ref as storageRef, getDownloadURL } from 'firebase/storage'
 import { app, storage } from '../firebase'
 import './ViewReport.css'
 
-function ViewReport({ reportId }) {
+function ViewReport({ reportId, onBackToDashboard }) {
   const [reportData, setReportData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dispatchResult] = useState(null)
-  const [aiRecommendations, setAiRecommendations] = useState(null)
-  const [aiLoading, setAiLoading] = useState(false)
+  const [policeRecommendations, setPoliceRecommendations] = useState(null)
+  const [dispatching, setDispatching] = useState(false)
+  const [dispatchSuccess, setDispatchSuccess] = useState(null)
 
-  // Generate AI recommendations using Gemini API
-  const generateAIRecommendations = async (crimeType, description) => {
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return distance;
+  }
+
+  // Calculate ETA based on distance and traffic conditions
+  const calculateETA = (distance, trafficCondition = 'normal') => {
+    const baseSpeed = 30; // km/h average speed in city
+    const trafficMultipliers = {
+      'light': 1.0,
+      'normal': 1.2,
+      'heavy': 1.8,
+      'severe': 2.5
+    };
+    
+    const speed = baseSpeed / trafficMultipliers[trafficCondition];
+    const timeInHours = distance / speed;
+    const timeInMinutes = Math.round(timeInHours * 60);
+    
+    return {
+      min: Math.max(5, timeInMinutes - 2), // Minimum 5 minutes
+      max: timeInMinutes + 3,
+      trafficCondition
+    };
+  }
+
+  // Generate route suggestions based on location
+  const generateRouteSuggestion = (policeLat, policeLon, crimeLat, crimeLon) => {
+    // This is a simplified route suggestion - in a real app, you'd use Google Maps API
+    const routes = [
+      {
+        name: "Primary Route",
+        description: "Direct route via main roads",
+        distance: calculateDistance(policeLat, policeLon, crimeLat, crimeLon),
+        traffic: "normal"
+      },
+      {
+        name: "Alternative Route",
+        description: "Via secondary roads to avoid traffic",
+        distance: calculateDistance(policeLat, policeLon, crimeLat, crimeLon) * 1.1,
+        traffic: "light"
+      },
+      {
+        name: "Emergency Route",
+        description: "Fastest route with emergency protocols",
+        distance: calculateDistance(policeLat, policeLon, crimeLat, crimeLon) * 0.95,
+        traffic: "light"
+      }
+    ];
+    
+    return routes.sort((a, b) => a.distance - b.distance)[0]; // Return shortest route
+  }
+
+
+  // Dispatch police officer to incident
+  const dispatchPolice = async (policeId, policeData) => {
     try {
-      setAiLoading(true)
+      setDispatching(true)
+      const db = getDatabase(app)
       
-      // Enhanced prompt that analyzes both crime type and description
-      const prompt = `As an emergency response AI assistant, analyze this crime report in detail and provide 3 specific recommendations for the admin:
-
-CRIME TYPE: ${crimeType}
-INCIDENT DESCRIPTION: ${description}
-
-Please analyze the description carefully and consider:
-- Severity and urgency of the incident
-- Specific details mentioned (weapons, injuries, suspects, etc.)
-- Location context and potential risks
-- Evidence mentioned or available
-- Witnesses or victims involved
-
-Provide exactly 3 recommendations in this JSON format:
-{
-  "recommendations": [
-    {
-      "type": "Priority",
-      "score": 85,
-      "title": "Specific Priority Action",
-      "description": "Detailed recommendation based on the specific incident details and urgency level"
-    },
-    {
-      "type": "Investigation", 
-      "score": 75,
-      "title": "Investigation Strategy",
-      "description": "Specific investigation steps based on the evidence and details mentioned in the description"
-    },
-    {
-      "type": "Follow-up",
-      "score": 65,
-      "title": "Follow-up Protocol", 
-      "description": "Follow-up actions tailored to the specific incident and parties involved"
-    }
-  ]
-}
-
-Focus on practical admin actions that address the specific details mentioned in the description.`
-
-      console.log('Sending AI request with prompt:', prompt)
-      
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyC9EZicsv9_W5JVVgHisolse3bXIn5OPf4`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        })
+      // Update police officer status to "Dispatched"
+      const policeRef = ref(db, `police/police account/${policeId}`)
+      await set(policeRef, {
+        ...policeData,
+        status: 'Dispatched',
+        currentAssignment: {
+          reportId: reportId,
+          assignedAt: new Date().toISOString(),
+          incidentType: reportData?.type || 'Unknown',
+          incidentLocation: reportData?.location || 'Unknown'
+        }
       })
 
-      console.log('AI API Response status:', response.status)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('AI API Error Response:', errorText)
-        throw new Error(`AI API Error: ${response.status} - ${errorText}`)
+      // Create dispatch record
+      const dispatchRef = ref(db, 'dispatches')
+      const newDispatchRef = push(dispatchRef)
+      await set(newDispatchRef, {
+        dispatchId: newDispatchRef.key,
+        reportId: reportId,
+        policeId: policeId,
+        policeName: `${policeData.firstName} ${policeData.lastName}`,
+        policeRank: policeData.rank || 'Police Officer',
+        policeContact: policeData.contactNumber,
+        incidentType: reportData?.type || 'Unknown',
+        incidentLocation: reportData?.location || 'Unknown',
+        dispatchedAt: new Date().toISOString(),
+        status: 'Dispatched',
+        eta: policeData.eta,
+        distance: policeData.distance,
+        route: policeData.route
+      })
+
+      // Update report status to "Dispatched"
+      const reportRef = ref(db, `civilian/civilian crime reports/${reportId}`)
+      await set(reportRef, {
+        ...reportData,
+        status: 'Dispatched',
+        dispatchedTo: {
+          policeId: policeId,
+          policeName: `${policeData.firstName} ${policeData.lastName}`,
+          dispatchedAt: new Date().toISOString()
+        }
+      })
+
+      setDispatchSuccess({
+        policeName: `${policeData.firstName} ${policeData.lastName}`,
+        dispatchId: newDispatchRef.key,
+        eta: policeData.eta
+      })
+
+      // Refresh police recommendations to show updated status
+      if (reportData?.coordinates?.latitude && reportData?.coordinates?.longitude) {
+        fetchNearestPolice(
+          parseFloat(reportData.coordinates.latitude),
+          parseFloat(reportData.coordinates.longitude)
+        )
       }
 
-      const data = await response.json()
-      console.log('AI API Response data:', data)
+    } catch (error) {
+      console.error('Error dispatching police:', error)
+      setDispatchSuccess({
+        error: 'Failed to dispatch police officer. Please try again.'
+      })
+    } finally {
+      setDispatching(false)
+    }
+  }
+
+  // Fetch police data and calculate nearest officers
+  const fetchNearestPolice = async (crimeLat, crimeLon) => {
+    try {
+      const db = getDatabase(app)
+      const policeRef = ref(db, 'police/police account')
+      const snapshot = await get(policeRef)
       
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        const aiResponse = data.candidates[0].content.parts[0].text
-        console.log('AI Response text:', aiResponse)
+      if (snapshot.exists()) {
+        const policeData = snapshot.val()
+        console.log('Raw police data:', policeData)
         
-        // Try to extract JSON from the response
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          const recommendations = JSON.parse(jsonMatch[0])
-          console.log('Parsed recommendations:', recommendations)
-          setAiRecommendations(recommendations.recommendations)
-        } else {
-          console.error('No JSON found in AI response:', aiResponse)
-          throw new Error('Invalid AI response format - no JSON found')
-        }
+        const policeArray = Object.entries(policeData).map(([id, data]) => ({
+          id,
+          ...data
+        }))
+        
+        console.log('Police array:', policeArray)
+
+        // Filter police with location data and calculate distances
+        const policeWithDistance = policeArray
+          .filter(police => {
+            const hasLocation = police.currentLocation && police.currentLocation.latitude && police.currentLocation.longitude
+            console.log(`Police ${police.firstName} ${police.lastName}:`, {
+              hasCurrentLocation: !!police.currentLocation,
+              latitude: police.currentLocation?.latitude,
+              longitude: police.currentLocation?.longitude,
+              hasLocation
+            })
+            return hasLocation
+          })
+          .map(police => {
+            const distance = calculateDistance(
+              crimeLat, 
+              crimeLon, 
+              parseFloat(police.currentLocation.latitude), 
+              parseFloat(police.currentLocation.longitude)
+            );
+            
+            const eta = calculateETA(distance);
+            const route = generateRouteSuggestion(
+              parseFloat(police.currentLocation.latitude),
+              parseFloat(police.currentLocation.longitude),
+              crimeLat,
+              crimeLon
+            );
+            
+            return {
+              ...police,
+              distance,
+              eta,
+              route
+            };
+          })
+          .sort((a, b) => a.distance - b.distance) // Sort by distance
+
+        console.log('Police with distance:', policeWithDistance)
+
+        // Get top 3 nearest police officers
+        const nearestPolice = policeWithDistance.slice(0, 3)
+        
+        console.log('Nearest police:', nearestPolice)
+        setPoliceRecommendations(nearestPolice)
       } else {
-        console.error('Invalid AI response structure:', data)
-        throw new Error('No valid response from AI - invalid structure')
+        console.log('No police data found in database')
+        setPoliceRecommendations([])
       }
     } catch (error) {
-      console.error('Error generating AI recommendations:', error)
-      
-      // Enhanced fallback that analyzes description content
-      console.log('Using fallback recommendations due to API error')
-      
-      // Analyze description for key details
-      const descriptionLower = description.toLowerCase()
-      const hasWeapon = descriptionLower.includes('weapon') || descriptionLower.includes('gun') || descriptionLower.includes('knife') || descriptionLower.includes('bat') || descriptionLower.includes('blade')
-      const hasInjury = descriptionLower.includes('injured') || descriptionLower.includes('hurt') || descriptionLower.includes('wound') || descriptionLower.includes('bleeding') || descriptionLower.includes('hospital')
-      const hasSuspect = descriptionLower.includes('suspect') || descriptionLower.includes('person') || descriptionLower.includes('man') || descriptionLower.includes('woman') || descriptionLower.includes('individual')
-      const hasVictim = descriptionLower.includes('victim') || descriptionLower.includes('child') || descriptionLower.includes('kid') || descriptionLower.includes('person')
-      const isUrgent = hasWeapon || hasInjury || descriptionLower.includes('emergency') || descriptionLower.includes('urgent')
-      
-      // Generate description-aware recommendations
-      const priorityScore = isUrgent ? 95 : 85
-      const investigationScore = hasSuspect ? 90 : 75
-      const followupScore = hasVictim ? 85 : 70
-      
-      setAiRecommendations([
-        {
-          type: "Priority",
-          score: priorityScore,
-          title: isUrgent ? "High Priority Response Required" : "Standard Response Required",
-          description: `Based on the ${crimeType} incident${hasWeapon ? ' involving weapons' : ''}${hasInjury ? ' with reported injuries' : ''}, ${isUrgent ? 'dispatch emergency units immediately' : 'dispatch appropriate units'} and secure the scene.`
-        },
-        {
-          type: "Investigation",
-          score: investigationScore,
-          title: hasSuspect ? "Suspect Investigation Priority" : "Evidence Collection",
-          description: `${hasSuspect ? 'Focus on suspect identification and apprehension. ' : ''}Gather evidence related to the ${crimeType} incident${hasVictim ? ' and ensure victim safety' : ''}. Interview witnesses and document all findings.`
-        },
-        {
-          type: "Follow-up",
-          score: followupScore,
-          title: hasVictim ? "Victim Support & Documentation" : "Administrative Review",
-          description: `${hasVictim ? 'Provide victim support services and ensure proper medical attention if needed. ' : ''}Complete comprehensive documentation of the ${crimeType} incident and follow up with the reporting individual.`
-        }
-      ])
-    } finally {
-      setAiLoading(false)
+      console.error('Error fetching police data:', error)
+      setPoliceRecommendations([])
     }
   }
 
@@ -231,10 +302,14 @@ Focus on practical admin actions that address the specific details mentioned in 
             multimedia: data.multimedia || []
           })
 
-          // Generate AI recommendations based on crime type and description
-          const crimeType = data.crimeType || 'Unknown'
-          const description = data.description || 'No description provided'
-          generateAIRecommendations(crimeType, description)
+          // Fetch nearest police officers if coordinates are available
+          if (data.location?.latitude && data.location?.longitude) {
+            fetchNearestPolice(
+              parseFloat(data.location.latitude), 
+              parseFloat(data.location.longitude)
+            )
+          }
+
         } else {
           setError('Report not found')
         }
@@ -535,6 +610,16 @@ Focus on practical admin actions that address the specific details mentioned in 
     <div className="page-content">
       <div className="report-header">
         <h1>View Report</h1>
+        <button 
+          className="close-button"
+          onClick={onBackToDashboard}
+          title="Close Report"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
       
       <div className="report-layout">
@@ -672,43 +757,68 @@ Focus on practical admin actions that address the specific details mentioned in 
         </div>
 
         <div className="ai-recommendations">
-          <h2>AI Response Recommendations</h2>
-          {aiLoading ? (
-            <div className="recommendations-list">
-              <div className="recommendation-card">
-                <div className="recommendation-header">
-                  <span className="recommendation-type">Loading...</span>
-                  <span className="recommendation-score">--%</span>
+          <h2>Response Recommendations</h2>
+          
+          {dispatchSuccess && (
+            <div className={`dispatch-success ${dispatchSuccess.error ? 'error' : ''}`}>
+              {dispatchSuccess.error ? (
+                <p>{dispatchSuccess.error}</p>
+              ) : (
+                <div>
+                  <h4>✅ Officer Dispatched Successfully!</h4>
+                  <p><strong>Officer:</strong> {dispatchSuccess.policeName}</p>
+                  <p><strong>Dispatch ID:</strong> {dispatchSuccess.dispatchId}</p>
+                  <p><strong>ETA:</strong> {dispatchSuccess.eta.min}-{dispatchSuccess.eta.max} minutes</p>
                 </div>
-                <h3>Generating AI Analysis...</h3>
-                <p>Please wait while AI analyzes the crime report and generates recommendations.</p>
-              </div>
-            </div>
-          ) : aiRecommendations ? (
-            <div className="recommendations-list">
-              {aiRecommendations.map((rec, index) => (
-                <div key={index} className="recommendation-card">
-                  <div className="recommendation-header">
-                    <span className="recommendation-type">{rec.type}</span>
-                    <span className="recommendation-score">{rec.score}%</span>
-                  </div>
-                  <h3>{rec.title}</h3>
-                  <p>{rec.description}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="recommendations-list">
-              <div className="recommendation-card">
-                <div className="recommendation-header">
-                  <span className="recommendation-type">Error</span>
-                  <span className="recommendation-score">--%</span>
-                </div>
-                <h3>Unable to Generate Recommendations</h3>
-                <p>There was an error generating AI recommendations. Please try refreshing the page.</p>
-              </div>
+              )}
             </div>
           )}
+
+          
+          <div className="recommendations-list">
+            {policeRecommendations && policeRecommendations.length > 0 ? (
+              policeRecommendations.map((police, index) => (
+                <div key={police.id} className="recommendation-card">
+                  <div className="recommendation-summary">
+                    <p>
+                      <strong>Recommended Responder:</strong> {police.firstName} {police.lastName} 
+                      ({police.distance.toFixed(2)} km away, ETA {police.eta.min}-{police.eta.max} mins). 
+                      <strong>Suggested route:</strong> {police.route.name} – {police.eta.trafficCondition} traffic.
+                    </p>
+                    <p className="contact-info">
+                      <strong>Contact:</strong> {police.contactNumber || 'Not available'} | 
+                      <strong>Status:</strong> {police.status || 'Available'}
+                    </p>
+                  </div>
+                  
+                  <div className="dispatch-actions">
+                    <button 
+                      className={`dispatch-button ${police.status === 'Dispatched' ? 'dispatched' : ''}`}
+                      onClick={() => dispatchPolice(police.id, police)}
+                      disabled={dispatching || police.status === 'Dispatched'}
+                    >
+                      {dispatching ? (
+                        <>
+                          <div className="loading-spinner-small"></div>
+                          Dispatching...
+                        </>
+                      ) : police.status === 'Dispatched' ? (
+                        'Already Dispatched'
+                      ) : (
+                        'Dispatch Officer'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="recommendation-card">
+                <h3>No Police Data Available</h3>
+                <p>Unable to fetch police location data from database.</p>
+                <p>Please ensure police accounts have location information.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

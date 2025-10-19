@@ -4,15 +4,12 @@ echo.
 
 cd /d "%~dp0..\arima_forecasting_api\app"
 
-echo Installing Python dependencies...
-pip install -r requirements.txt
-
-echo.
 echo Starting Flask API server...
 echo API will be available at: http://127.0.0.1:5000
+echo.
 echo Press Ctrl+C to stop the server
 echo.
 
-python run_api.py
+python -c "from api import app; app.run(debug=True, host='127.0.0.1', port=5000)"
 
 pause

@@ -12,15 +12,23 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
-        .test-section {
+        .container {
             background: white;
             padding: 20px;
-            margin: 20px 0;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .test-button {
-            background: #3b82f6;
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background-color: #007bff;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -28,242 +36,238 @@
             cursor: pointer;
             margin: 5px;
         }
-        .test-button:hover {
-            background: #2563eb;
-        }
-        .result {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 10px 0;
-            white-space: pre-wrap;
-            font-family: monospace;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .error {
-            background: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-        .success {
-            background: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-        .warning {
-            background: #fff3cd;
-            border-color: #ffeaa7;
-            color: #856404;
-        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .loading { color: #007bff; }
     </style>
 </head>
 <body>
-    <h1>ARIMA API Connection Test</h1>
-    <p>Use this tool to test if your ARIMA API is running and accessible.</p>
+    <div class="container">
+        <h1>ARIMA Forecasting API Connection Test</h1>
+        <p>This page tests the connection to the ARIMA forecasting API and displays available data.</p>
+        
+        <div class="test-section info">
+            <h3>API Status</h3>
+            <p>API Base URL: <code>http://127.0.0.1:5000</code></p>
+            <button onclick="testApiHealth()">Test API Health</button>
+            <div id="health-status"></div>
+        </div>
 
-    <div class="test-section">
-        <h2>1. Test API Connection</h2>
-        <button class="test-button" onclick="testConnection()">Test API Connection</button>
-        <div id="connection-result" class="result" style="display: none;"></div>
-    </div>
+        <div class="test-section">
+            <h3>Available Crime Types</h3>
+            <button onclick="fetchCrimeTypes()">Fetch Crime Types</button>
+            <div id="crime-types-result"></div>
+        </div>
 
-    <div class="test-section">
-        <h2>2. Test Crime Types Endpoint</h2>
-        <button class="test-button" onclick="testCrimeTypes()">Test /api/crime_types</button>
-        <div id="crime-types-result" class="result" style="display: none;"></div>
-    </div>
+        <div class="test-section">
+            <h3>Available Locations</h3>
+            <button onclick="fetchLocations()">Fetch Locations</button>
+            <div id="locations-result"></div>
+        </div>
 
-    <div class="test-section">
-        <h2>3. Test Locations Endpoint</h2>
-        <button class="test-button" onclick="testLocations()">Test /api/locations</button>
-        <div id="locations-result" class="result" style="display: none;"></div>
-    </div>
+        <div class="test-section">
+            <h3>Test Forecast</h3>
+            <p>Select crime type and location to test forecasting:</p>
+            <select id="crimeTypeSelect">
+                <option value="">Select Crime Type</option>
+            </select>
+            <select id="locationSelect">
+                <option value="">Select Location</option>
+            </select>
+            <button onclick="testForecast()">Test Forecast</button>
+            <div id="forecast-result"></div>
+        </div>
 
-    <div class="test-section">
-        <h2>4. Test Visualization Endpoint</h2>
-        <button class="test-button" onclick="testVisualization()">Test /api/visualization</button>
-        <div id="visualization-result" class="result" style="display: none;"></div>
-    </div>
-
-    <div class="test-section">
-        <h2>5. Quick Diagnosis</h2>
-        <button class="test-button" onclick="runDiagnosis()">Run Full Diagnosis</button>
-        <div id="diagnosis-result" class="result" style="display: none;"></div>
+        <div class="test-section">
+            <h3>Test Visualization Data</h3>
+            <button onclick="testVisualization()">Test Visualization Data</button>
+            <div id="visualization-result"></div>
+        </div>
     </div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:5000';
+        const API_BASE_URL = 'http://127.0.0.1:5000';
 
-        async function testConnection() {
-            const resultDiv = document.getElementById('connection-result');
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result';
-            resultDiv.textContent = 'Testing connection...';
-
+        async function testApiHealth() {
+            const statusDiv = document.getElementById('health-status');
+            statusDiv.innerHTML = '<div class="loading">Testing API health...</div>';
+            
             try {
-                const response = await fetch(`${API_BASE_URL}/`);
+                const response = await fetch(`${API_BASE_URL}/api/locations`);
                 if (response.ok) {
-                    resultDiv.className = 'result success';
-                    resultDiv.textContent = 'SUCCESS: API is running and accessible!\n\nStatus: ' + response.status + '\nURL: ' + API_BASE_URL;
+                    statusDiv.innerHTML = '<div class="success">✅ API is running and accessible!</div>';
                 } else {
-                    resultDiv.className = 'result warning';
-                    resultDiv.textContent = 'WARNING: API responded but with status: ' + response.status;
+                    statusDiv.innerHTML = '<div class="error">❌ API responded with error: ' + response.status + '</div>';
                 }
             } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = 'ERROR: Connection failed: ' + error.message + '\n\nMake sure your ARIMA API is running on port 5000.';
+                statusDiv.innerHTML = '<div class="error">❌ Cannot connect to API: ' + error.message + '</div>';
             }
         }
 
-        async function testCrimeTypes() {
+        async function fetchCrimeTypes() {
             const resultDiv = document.getElementById('crime-types-result');
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result';
-            resultDiv.textContent = 'Testing crime types endpoint...';
-
+            resultDiv.innerHTML = '<div class="loading">Fetching crime types...</div>';
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/api/crime_types`);
                 const data = await response.json();
                 
-                if (response.ok && data.crime_types) {
-                    resultDiv.className = 'result success';
-                    resultDiv.textContent = 'SUCCESS: Crime types loaded successfully!\n\nCount: ' + data.crime_types.length + '\n\nTypes:\n' + data.crime_types.join('\n');
+                if (response.ok) {
+                    const crimeTypes = data.crime_types || [];
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Found ${crimeTypes.length} crime types:</h4>
+                            <ul>
+                                ${crimeTypes.map(type => `<li>${type}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    
+                    // Populate dropdown
+                    const select = document.getElementById('crimeTypeSelect');
+                    select.innerHTML = '<option value="">Select Crime Type</option>' +
+                        crimeTypes.map(type => `<option value="${type}">${type}</option>`).join('');
                 } else {
-                    resultDiv.className = 'result error';
-                    resultDiv.textContent = 'ERROR: Invalid response format:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = '<div class="error">❌ Error: ' + data.error + '</div>';
                 }
             } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = 'ERROR: Error: ' + error.message;
+                resultDiv.innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
             }
         }
 
-        async function testLocations() {
+        async function fetchLocations() {
             const resultDiv = document.getElementById('locations-result');
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result';
-            resultDiv.textContent = 'Testing locations endpoint...';
-
+            resultDiv.innerHTML = '<div class="loading">Fetching locations...</div>';
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/api/locations`);
                 const data = await response.json();
                 
-                if (response.ok && data.locations) {
-                    resultDiv.className = 'result success';
-                    resultDiv.textContent = 'SUCCESS: Locations loaded successfully!\n\nCount: ' + data.locations.length + '\n\nLocations:\n' + data.locations.join('\n');
+                if (response.ok) {
+                    const locations = data.locations || [];
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Found ${locations.length} locations:</h4>
+                            <ul>
+                                ${locations.map(location => `<li>${location}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    
+                    // Populate dropdown
+                    const select = document.getElementById('locationSelect');
+                    select.innerHTML = '<option value="">Select Location</option>' +
+                        locations.map(location => `<option value="${location}">${location}</option>`).join('');
                 } else {
-                    resultDiv.className = 'result error';
-                    resultDiv.textContent = 'ERROR: Invalid response format:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = '<div class="error">❌ Error: ' + data.error + '</div>';
                 }
             } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = 'ERROR: Error: ' + error.message;
+                resultDiv.innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+            }
+        }
+
+        async function testForecast() {
+            const crimeType = document.getElementById('crimeTypeSelect').value;
+            const location = document.getElementById('locationSelect').value;
+            const resultDiv = document.getElementById('forecast-result');
+            
+            if (!crimeType || !location) {
+                resultDiv.innerHTML = '<div class="error">❌ Please select both crime type and location</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Generating forecast...</div>';
+            
+            try {
+                const params = new URLSearchParams({
+                    crime_type: crimeType,
+                    location: location,
+                    months: '12'
+                });
+                
+                const response = await fetch(`${API_BASE_URL}/api/forecast?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Forecast generated successfully!</h4>
+                            <p><strong>Crime Type:</strong> ${data.crime_type}</p>
+                            <p><strong>Location:</strong> ${data.location}</p>
+                            <p><strong>Forecast Period:</strong> ${data.forecast.dates.length} months</p>
+                            <p><strong>Sample Values:</strong> ${data.forecast.values.slice(0, 5).map(v => v.toFixed(1)).join(', ')}...</p>
+                            <details>
+                                <summary>View Full Forecast Data</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ Error: ' + data.error + '</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
             }
         }
 
         async function testVisualization() {
+            const crimeType = document.getElementById('crimeTypeSelect').value;
+            const location = document.getElementById('locationSelect').value;
             const resultDiv = document.getElementById('visualization-result');
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result';
-            resultDiv.textContent = 'Testing visualization endpoint...';
-
+            
+            if (!crimeType || !location) {
+                resultDiv.innerHTML = '<div class="error">❌ Please select both crime type and location first</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Generating visualization data...</div>';
+            
             try {
-                // Test with default parameters
                 const params = new URLSearchParams({
-                    crime_type: 'Assault',
-                    location: 'Barangay 101 Zone 8',
+                    crime_type: crimeType,
+                    location: location,
                     months: '12'
                 });
-
+                
                 const response = await fetch(`${API_BASE_URL}/api/visualization?${params}`);
                 const data = await response.json();
                 
                 if (response.ok) {
-                    resultDiv.className = 'result success';
-                    resultDiv.textContent = 'SUCCESS: Visualization endpoint working!\n\nResponse structure:\n' + JSON.stringify(data, null, 2);
+                    const historicalCount = data.raw_data.history.values.length;
+                    const forecastCount = data.raw_data.forecast.values.length;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Visualization data generated successfully!</h4>
+                            <p><strong>Crime Type:</strong> ${data.crime_type}</p>
+                            <p><strong>Location:</strong> ${data.location}</p>
+                            <p><strong>Historical Data Points:</strong> ${historicalCount}</p>
+                            <p><strong>Forecast Data Points:</strong> ${forecastCount}</p>
+                            <p><strong>Chart Type:</strong> ${data.chart_config.type}</p>
+                            <details>
+                                <summary>View Chart Configuration</summary>
+                                <pre>${JSON.stringify(data.chart_config, null, 2)}</pre>
+                            </details>
+                            <details>
+                                <summary>View Raw Data</summary>
+                                <pre>${JSON.stringify(data.raw_data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
                 } else {
-                    resultDiv.className = 'result error';
-                    resultDiv.textContent = 'ERROR: Error response:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = '<div class="error">❌ Error: ' + data.error + '</div>';
                 }
             } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = 'ERROR: Error: ' + error.message;
+                resultDiv.innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
             }
         }
 
-        async function runDiagnosis() {
-            const resultDiv = document.getElementById('diagnosis-result');
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result';
-            resultDiv.textContent = 'Running full diagnosis...\n\n';
-
-            let diagnosis = '';
-
-            // Test 1: Basic connection
-            try {
-                const response = await fetch(`${API_BASE_URL}/`);
-                if (response.ok) {
-                    diagnosis += 'SUCCESS: API Connection: OK\n';
-                } else {
-                    diagnosis += 'WARNING: API Connection: Status ' + response.status + '\n';
-                }
-            } catch (error) {
-                diagnosis += 'ERROR: API Connection: FAILED - ' + error.message + '\n';
-                resultDiv.className = 'result error';
-                resultDiv.textContent = diagnosis + '\n\nSOLUTION: SOLUTION: Start your ARIMA API server:\ncd "c:\\Users\\Gno\\Desktop\\aiko\\arima_forcasting\\app"\npython run_api.py';
-                return;
-            }
-
-            // Test 2: Crime types
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/crime_types`);
-                const data = await response.json();
-                if (data.crime_types && data.crime_types.length > 0) {
-                    diagnosis += 'SUCCESS: Crime Types: OK (' + data.crime_types.length + ' types)\n';
-                } else {
-                    diagnosis += 'ERROR: Crime Types: No data returned\n';
-                }
-            } catch (error) {
-                diagnosis += 'ERROR: Crime Types: FAILED - ' + error.message + '\n';
-            }
-
-            // Test 3: Locations
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/locations`);
-                const data = await response.json();
-                if (data.locations && data.locations.length > 0) {
-                    diagnosis += 'SUCCESS: Locations: OK (' + data.locations.length + ' locations)\n';
-                } else {
-                    diagnosis += 'ERROR: Locations: No data returned\n';
-                }
-            } catch (error) {
-                diagnosis += 'ERROR: Locations: FAILED - ' + error.message + '\n';
-            }
-
-            // Test 4: Visualization
-            try {
-                const params = new URLSearchParams({
-                    crime_type: 'Assault',
-                    location: 'Barangay 101 Zone 8',
-                    months: '12'
-                });
-                const response = await fetch(`${API_BASE_URL}/api/visualization?${params}`);
-                const data = await response.json();
-                if (data.forecast_data) {
-                    diagnosis += 'SUCCESS: Visualization: OK\n';
-                } else {
-                    diagnosis += 'ERROR: Visualization: No forecast data\n';
-                }
-            } catch (error) {
-                diagnosis += 'ERROR: Visualization: FAILED - ' + error.message + '\n';
-            }
-
-            resultDiv.className = 'result success';
-            resultDiv.textContent = diagnosis + '\n\nNEXT STEPS: NEXT STEPS:\n1. If any tests failed, check your ARIMA API server\n2. Open browser console (F12) in your React app\n3. Check for error messages when selecting crime type/location';
-        }
+        // Auto-fetch crime types and locations on page load
+        window.onload = function() {
+            fetchCrimeTypes();
+            fetchLocations();
+        };
     </script>
 </body>
 </html>
-
