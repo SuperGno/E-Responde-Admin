@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { getDatabase, ref, onValue, off, update, get, push, set } from 'firebase/database'
-import { app } from '../firebase'
+import { app, iceServers } from '../firebase'
 import './Dashboard.css'
 
 function Dashboard({ onNavigateToReport }) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPageImmediate, setCurrentPageImmediate] = useState(1);
+  const [currentPageHigh, setCurrentPageHigh] = useState(1);
+  const [currentPageModerate, setCurrentPageModerate] = useState(1);
+  const [currentPageLow, setCurrentPageLow] = useState(1);
   const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,7 +82,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -97,7 +100,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -115,7 +118,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -133,7 +136,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -142,29 +145,40 @@ function Dashboard({ onNavigateToReport }) {
   
 
   // Pagination for severity-based reports
-  const totalImmediatePages = Math.max(1, Math.ceil(filteredImmediateSeverity.length / itemsPerPage));
-  const startImmediateIndex = (currentPage - 1) * itemsPerPage;
+  const toTimestamp = (value) => {
+    const ts = new Date(value).getTime();
+    return Number.isFinite(ts) ? ts : 0;
+  };
+
+  // Always sort newest-first within each severity before paginating
+  const immediateSorted = [...filteredImmediateSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+  const highSorted = [...filteredHighSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+  const moderateSorted = [...filteredModerateSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+  const lowSorted = [...filteredLowSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+
+  const totalImmediatePages = Math.max(1, Math.ceil(immediateSorted.length / itemsPerPage));
+  const startImmediateIndex = (currentPageImmediate - 1) * itemsPerPage;
   const endImmediateIndex = startImmediateIndex + itemsPerPage;
-  const currentImmediateSubmissions = filteredImmediateSeverity.slice(startImmediateIndex, endImmediateIndex);
+  const currentImmediateSubmissions = immediateSorted.slice(startImmediateIndex, endImmediateIndex);
 
-  const totalHighPages = Math.max(1, Math.ceil(filteredHighSeverity.length / itemsPerPage));
-  const startHighIndex = (currentPage - 1) * itemsPerPage;
+  const totalHighPages = Math.max(1, Math.ceil(highSorted.length / itemsPerPage));
+  const startHighIndex = (currentPageHigh - 1) * itemsPerPage;
   const endHighIndex = startHighIndex + itemsPerPage;
-  const currentHighSubmissions = filteredHighSeverity.slice(startHighIndex, endHighIndex);
+  const currentHighSubmissions = highSorted.slice(startHighIndex, endHighIndex);
 
-  const totalModeratePages = Math.max(1, Math.ceil(filteredModerateSeverity.length / itemsPerPage));
-  const startModerateIndex = (currentPage - 1) * itemsPerPage;
+  const totalModeratePages = Math.max(1, Math.ceil(moderateSorted.length / itemsPerPage));
+  const startModerateIndex = (currentPageModerate - 1) * itemsPerPage;
   const endModerateIndex = startModerateIndex + itemsPerPage;
-  const currentModerateSubmissions = filteredModerateSeverity.slice(startModerateIndex, endModerateIndex);
+  const currentModerateSubmissions = moderateSorted.slice(startModerateIndex, endModerateIndex);
 
-  const totalLowPages = Math.max(1, Math.ceil(filteredLowSeverity.length / itemsPerPage));
-  const startLowIndex = (currentPage - 1) * itemsPerPage;
+  const totalLowPages = Math.max(1, Math.ceil(lowSorted.length / itemsPerPage));
+  const startLowIndex = (currentPageLow - 1) * itemsPerPage;
   const endLowIndex = startLowIndex + itemsPerPage;
-  const currentLowSubmissions = filteredLowSeverity.slice(startLowIndex, endLowIndex);
+  const currentLowSubmissions = lowSorted.slice(startLowIndex, endLowIndex);
 
   const getStatusColor = (status) => {
     const normalizedStatus = status.toLowerCase();
-    if (normalizedStatus === "resolved") {
+    if (normalizedStatus === "resolved" || normalizedStatus === "case resolved") {
       return "status-resolved";
     } else if (normalizedStatus === "in progress") {
       return "status-in-progress";
@@ -183,12 +197,18 @@ function Dashboard({ onNavigateToReport }) {
       case "received":
         return "Received";
       case "resolved":
-        return "Resolved";
+      case "case resolved":
+        return "Case Resolved";
       case "pending":
         return "Pending";
       default:
         return status;
     }
+  };
+
+  const isResolved = (status) => {
+    const s = (status || '').toLowerCase();
+    return s === 'resolved' || s === 'case resolved';
   };
 
   const formatDate = (dateString) => {
@@ -255,7 +275,7 @@ function Dashboard({ onNavigateToReport }) {
         
         // Calculate statistics
         const receivedCount = reportsArray.filter(report => 
-          report.status.toLowerCase() === 'received'
+          (report.status || '').toLowerCase() === 'received'
         ).length;
         
         const pendingCount = reportsArray.filter(report => 
@@ -264,12 +284,10 @@ function Dashboard({ onNavigateToReport }) {
         ).length;
         
         const inProgressCount = reportsArray.filter(report => 
-          report.status.toLowerCase() === 'in progress'
+          (report.status || '').toLowerCase() === 'in progress'
         ).length;
         
-        const resolvedCount = reportsArray.filter(report => 
-          report.status.toLowerCase() === 'resolved'
-        ).length;
+        const resolvedCount = reportsArray.filter(report => isResolved(report.status)).length;
         
         setStats({
           receivedReports: receivedCount,
@@ -386,7 +404,11 @@ function Dashboard({ onNavigateToReport }) {
 
   const handleFilterClick = (filterType) => {
     setActiveFilter(activeFilter === filterType ? null : filterType);
-    setCurrentPage(1); // Reset to first page when filter changes
+    // Reset per-section pages when filter changes
+    setCurrentPageImmediate(1);
+    setCurrentPageHigh(1);
+    setCurrentPageModerate(1);
+    setCurrentPageLow(1);
   };
 
   const handleUpdateStatus = (report) => {
@@ -705,14 +727,25 @@ function Dashboard({ onNavigateToReport }) {
       
       // Create peer connection for internet calling
       const configuration = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
+        iceServers,
+        iceTransportPolicy: 'all',
+        bundlePolicy: 'balanced'
       };
       
       peerConnectionRef.current = new RTCPeerConnection(configuration);
+
+      peerConnectionRef.current.oniceconnectionstatechange = () => {
+        const state = peerConnectionRef.current?.iceConnectionState
+        console.log('ICE state:', state)
+        if (state === 'failed' || state === 'disconnected') {
+          try {
+            peerConnectionRef.current?.restartIce?.()
+            console.log('Attempted ICE restart')
+          } catch (e) {
+            console.log('ICE restart unsupported', e)
+          }
+        }
+      }
       
       
       // Add local audio stream to peer connection
@@ -1094,18 +1127,18 @@ function Dashboard({ onNavigateToReport }) {
             <div className="pagination">
               <button 
                 className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPageImmediate === 1}
+                onClick={() => setCurrentPageImmediate(currentPageImmediate - 1)}
               >
                 Previous
               </button>
               <span className="pagination-info">
-                Page {currentPage} of {totalImmediatePages}
+                Page {currentPageImmediate} of {totalImmediatePages}
               </span>
               <button 
                 className="pagination-btn"
-                disabled={currentPage === totalImmediatePages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPageImmediate === totalImmediatePages}
+                onClick={() => setCurrentPageImmediate(currentPageImmediate + 1)}
               >
                 Next
               </button>
@@ -1185,18 +1218,18 @@ function Dashboard({ onNavigateToReport }) {
             <div className="pagination">
               <button 
                 className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPageHigh === 1}
+                onClick={() => setCurrentPageHigh(currentPageHigh - 1)}
               >
                 Previous
               </button>
               <span className="pagination-info">
-                Page {currentPage} of {totalHighPages}
+                Page {currentPageHigh} of {totalHighPages}
               </span>
               <button 
                 className="pagination-btn"
-                disabled={currentPage === totalHighPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPageHigh === totalHighPages}
+                onClick={() => setCurrentPageHigh(currentPageHigh + 1)}
               >
                 Next
               </button>
@@ -1276,18 +1309,18 @@ function Dashboard({ onNavigateToReport }) {
             <div className="pagination">
               <button 
                 className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPageModerate === 1}
+                onClick={() => setCurrentPageModerate(currentPageModerate - 1)}
               >
                 Previous
               </button>
               <span className="pagination-info">
-                Page {currentPage} of {totalModeratePages}
+                Page {currentPageModerate} of {totalModeratePages}
               </span>
               <button 
                 className="pagination-btn"
-                disabled={currentPage === totalModeratePages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPageModerate === totalModeratePages}
+                onClick={() => setCurrentPageModerate(currentPageModerate + 1)}
               >
                 Next
               </button>
@@ -1367,18 +1400,18 @@ function Dashboard({ onNavigateToReport }) {
             <div className="pagination">
               <button 
                 className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPageLow === 1}
+                onClick={() => setCurrentPageLow(currentPageLow - 1)}
               >
                 Previous
               </button>
               <span className="pagination-info">
-                Page {currentPage} of {totalLowPages}
+                Page {currentPageLow} of {totalLowPages}
               </span>
               <button 
                 className="pagination-btn"
-                disabled={currentPage === totalLowPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPageLow === totalLowPages}
+                onClick={() => setCurrentPageLow(currentPageLow + 1)}
               >
                 Next
               </button>
@@ -1411,11 +1444,11 @@ function Dashboard({ onNavigateToReport }) {
                 In Progress
               </button>
               <button 
-                className={`status-btn ${selectedReport?.status === 'Resolved' ? 'active' : ''}`}
-                onClick={() => updateReportStatus('Resolved')}
+                className={`status-btn ${['Resolved','Case Resolved'].includes(selectedReport?.status) ? 'active' : ''}`}
+                onClick={() => updateReportStatus('Case Resolved')}
                 disabled={updating}
               >
-                Resolved
+                Case Resolved
               </button>
             </div>
             

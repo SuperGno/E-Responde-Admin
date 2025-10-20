@@ -54,4 +54,22 @@ const realtimeDb = getDatabase(app)
 const functions = getFunctions(app)
 const storage = getStorage(app)
 
-export { app, auth, db, realtimeDb, functions, storage }
+// Export ICE servers for WebRTC (support NAT traversal with TURN)
+// Configure via Vite env or fallback to public STUN only
+const defaultIceServers = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' }
+]
+
+const customTurn = (import.meta.env.VITE_TURN_URL && import.meta.env.VITE_TURN_USERNAME && import.meta.env.VITE_TURN_CREDENTIAL)
+  ? [{
+      urls: import.meta.env.VITE_TURN_URL,
+      username: import.meta.env.VITE_TURN_USERNAME,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    }]
+  : []
+
+const iceServers = [...defaultIceServers, ...customTurn]
+
+export { app, auth, db, realtimeDb, functions, storage, iceServers }

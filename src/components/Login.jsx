@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import { useAuth } from '../providers/AuthProvider'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { realtimeDb } from '../firebase'
 import { ref, set, get } from 'firebase/database'
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from 'firebase/auth'
 import './Login.css'
 
 function Login({ onLoginSuccess }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from?.pathname || '/'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,6 +21,8 @@ function Login({ onLoginSuccess }) {
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState('')
+
+  const authContext = useAuth()
 
   // Simple password hashing using built-in Web Crypto API
   const hashPassword = async (password) => {
@@ -184,7 +191,12 @@ function Login({ onLoginSuccess }) {
         return
       }
 
-      onLoginSuccess()
+      // Inform parent if provided
+      if (typeof onLoginSuccess === 'function') {
+        try { onLoginSuccess() } catch {}
+      }
+      // Navigate to protected area; AuthProvider will provide user state
+      navigate(from, { replace: true })
 
     } catch (err) {
       console.error('Login error:', err)
@@ -378,6 +390,17 @@ function Login({ onLoginSuccess }) {
               )}
             </button>
           </form>
+        )}
+
+        {/* Dev debug panel to display resolved auth & claims */}
+        {process.env.NODE_ENV !== 'production' && (
+          <div style={{ marginTop: '1rem', background: '#0f1724', color: '#cbd5e1', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem' }}>
+            <strong>Debug</strong>
+            <pre style={{ whiteSpace: 'pre-wrap', marginTop: '0.5rem' }}>
+{JSON.stringify({ user: authContext?.user ? { uid: authContext.user.uid, email: authContext.user.email } : null, claims: authContext?.claims, loading: authContext?.loading }, null, 2)}
+            </pre>
+            <p style={{ marginTop: '0.5rem', color: '#94a3b8' }}>If <code>claims.role</code> is missing or not in <code>[superadmin, dispatcher, analyst, admin]</code> you will be redirected to <code>/unauthorized</code>.</p>
+          </div>
         )}
         
       </div>
