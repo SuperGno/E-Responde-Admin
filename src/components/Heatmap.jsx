@@ -283,7 +283,7 @@ function Heatmap() {
               )}
             </MapContainer>
             <div className="map-legend">
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: '600', color: '#f1f5f9' }}>Crime Density</h4>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)' }}>Crime Density</h4>
               <div className="legend-item">
                 <div className="legend-color" style={{ backgroundColor: '#0000ff' }}></div>
                 <span className="legend-label">Low</span>
@@ -353,7 +353,7 @@ function Heatmap() {
                 value={intensity}
                 onChange={(e) => setIntensity(parseInt(e.target.value))}
               />
-              <small style={{ color: '#718096', fontSize: '0.75rem' }}>
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                 Controls heatmap intensity
               </small>
             </div>
@@ -366,7 +366,7 @@ function Heatmap() {
                 value={radius}
                 onChange={(e) => setRadius(parseInt(e.target.value))}
               />
-              <small style={{ color: '#718096', fontSize: '0.75rem' }}>
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                 Controls heatmap radius & blur
               </small>
             </div>
@@ -380,7 +380,7 @@ function Heatmap() {
                 />
                 Show Distance Circles
               </label>
-              <small style={{ color: '#718096', fontSize: '0.75rem' }}>
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                 Display concentric circles for distance reference
               </small>
             </div>
@@ -402,7 +402,7 @@ function Heatmap() {
                 >
                   Center on Moriones-Tondo Police Station
                 </button>
-                <small style={{ color: '#718096', fontSize: '0.75rem' }}>
+                <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                   Click to set reference point for distance circles
                 </small>
               </div>

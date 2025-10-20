@@ -11,14 +11,14 @@
 }
 
 .heatmap-header h1 {
-  color: #f1f5f9;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
   font-size: 2rem;
   font-weight: 700;
 }
 
 .heatmap-header p {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 1.1rem;
 }
 
@@ -30,11 +30,11 @@
 }
 
 .map-container {
-  background: #1e293b;
+  background: var(--bg-secondary);
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-primary);
   overflow: hidden;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-primary);
 }
 
 .map-wrapper {
@@ -114,12 +114,12 @@
 
 
 .heatmap-controls {
-  background: #1e293b;
+  background: var(--bg-secondary);
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-primary);
   padding: 1.5rem;
   height: fit-content;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-primary);
 }
 
 .control-section {

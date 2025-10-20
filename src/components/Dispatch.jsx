@@ -609,18 +609,18 @@ function Dispatch() {
                     padding: '1rem', 
                     marginBottom: '1rem' 
                   }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', color: '#0c4a6e', fontSize: '0.9rem' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
                       Recommended Patrol Units (Sorted by Distance)
                     </h4>
-                    <div style={{ fontSize: '0.8rem', color: '#0369a1' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
                       {sortedPatrolUnits.slice(0, 3).map((unit, index) => (
                         <div key={unit.id} style={{ marginBottom: '0.25rem' }}>
                           <strong>{index + 1}.</strong> {unit.policeRank} {unit.firstName} {unit.lastName} 
-                          <span style={{ color: unit.status === 'Available' ? '#16a34a' : '#dc2626' }}>
+                          <span style={{ color: unit.status === 'Available' ? 'var(--success)' : 'var(--error)' }}>
                             {' '}({unit.status})
                           </span>
                           {' '}- {unit.distance.toFixed(1)} km away
-                          {index === 0 && <span style={{ color: '#dc2626', fontWeight: 'bold' }}> - NEAREST</span>}
+                          {index === 0 && <span style={{ color: 'var(--error)', fontWeight: 'bold' }}> - NEAREST</span>}
                         </div>
                       ))}
                     </div>
@@ -630,7 +630,7 @@ function Dispatch() {
                 <div className="form-group">
                   <label>Response Unit *</label>
                   {sortedPatrolUnits.length > 0 && sortedPatrolUnits[0].distance !== undefined && (
-                    <small style={{ color: '#10b981', fontSize: '0.8rem', marginBottom: '0.5rem', display: 'block' }}>
+                    <small style={{ color: 'var(--success)', fontSize: '0.8rem', marginBottom: '0.5rem', display: 'block' }}>
                       Units sorted by proximity to crime location
                     </small>
                   )}

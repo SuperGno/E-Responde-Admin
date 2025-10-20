@@ -8,6 +8,14 @@ import Heatmap from './components/Heatmap.jsx'
 import Dispatch from './components/Dispatch.jsx'
 import PoliceAccountManagement from './components/PoliceAccountManagement.jsx'
 import UserAccountManagement from './components/UserAccountManagement.jsx'
+import ViewReport from './components/ViewReport.jsx'
+import { useParams, useNavigate } from 'react-router-dom'
+
+function ViewReportRoute() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  return <ViewReport reportId={id} onBackToDashboard={() => navigate('/')} />
+}
 
 const router = createBrowserRouter([
   { path: '/login', element: <Login onLoginSuccess={() => {}} /> },
@@ -21,6 +29,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Dashboard onNavigateToReport={() => {}} /> },
+      { path: 'report/:id', element: <ViewReportRoute /> },
       { path: 'analytics', element: <Analytics /> },
       { path: 'heatmap', element: <Heatmap /> },
       { path: 'dispatch', element: <Dispatch /> },

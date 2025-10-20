@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getDatabase, ref, onValue, off, update, get, push, set } from 'firebase/database'
 import { app, iceServers } from '../firebase'
 import './Dashboard.css'
 
 function Dashboard({ onNavigateToReport }) {
+  const navigate = useNavigate()
   const [currentPageImmediate, setCurrentPageImmediate] = useState(1);
   const [currentPageHigh, setCurrentPageHigh] = useState(1);
   const [currentPageModerate, setCurrentPageModerate] = useState(1);
@@ -983,10 +985,7 @@ function Dashboard({ onNavigateToReport }) {
   };
 
   return (
-    <div className="page-content">
-      <div className="dashboard-header">
-        <h1>E-Responde Dashboard</h1>
-      </div>
+    <div className="dashboard-container">
       
       {/* New Report Notification */}
       {newReportNotification && (
@@ -1023,35 +1022,40 @@ function Dashboard({ onNavigateToReport }) {
       )}
 
       <section className="dashboard-section">
-        <h2>Report Overview</h2>
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Report Overview</h2>
+            <p className="section-subtitle">Current system statistics</p>
+          </div>
+        </div>
         <div className="dashboard-grid">
           <div 
-            className={`card filter-card ${activeFilter === 'pending' ? 'active' : ''}`}
+            className={`dashboard-card ${activeFilter === 'pending' ? 'active' : ''}`}
             onClick={() => handleFilterClick('pending')}
           >
-            <h3>Pending Reports</h3>
-            <p className="stat">{stats.pendingReports}</p>
+            <div className="dashboard-card-title">Pending Reports</div>
+            <div className="dashboard-card-value">{stats.pendingReports}</div>
           </div>
           <div 
-            className={`card filter-card ${activeFilter === 'received' ? 'active' : ''}`}
+            className={`dashboard-card ${activeFilter === 'received' ? 'active' : ''}`}
             onClick={() => handleFilterClick('received')}
           >
-            <h3>Received Reports</h3>
-            <p className="stat">{stats.receivedReports}</p>
+            <div className="dashboard-card-title">Received Reports</div>
+            <div className="dashboard-card-value">{stats.receivedReports}</div>
           </div>
           <div 
-            className={`card filter-card ${activeFilter === 'in-progress' ? 'active' : ''}`}
+            className={`dashboard-card ${activeFilter === 'in-progress' ? 'active' : ''}`}
             onClick={() => handleFilterClick('in-progress')}
           >
-            <h3>In Progress Reports</h3>
-            <p className="stat">{stats.inProgressReports}</p>
+            <div className="dashboard-card-title">In Progress Reports</div>
+            <div className="dashboard-card-value">{stats.inProgressReports}</div>
           </div>
           <div 
-            className={`card filter-card ${activeFilter === 'resolved' ? 'active' : ''}`}
+            className={`dashboard-card ${activeFilter === 'resolved' ? 'active' : ''}`}
             onClick={() => handleFilterClick('resolved')}
           >
-            <h3>Resolved Reports</h3>
-            <p className="stat">{stats.resolvedReports}</p>
+            <div className="dashboard-card-title">Resolved Reports</div>
+            <div className="dashboard-card-value">{stats.resolvedReports}</div>
           </div>
         </div>
       </section>
@@ -1060,11 +1064,14 @@ function Dashboard({ onNavigateToReport }) {
       {filteredImmediateSeverity.length > 0 && (
         <section className="dashboard-section">
           <div className="section-header">
-            <h2>Immediate Severity Reports</h2>
-            <span className="severity-badge immediate-severity">IMMEDIATE</span>
+            <div>
+              <h2 className="section-title">Immediate Severity Reports</h2>
+              <p className="section-subtitle">High priority emergency cases</p>
+            </div>
+            <span className="priority-badge priority-high">IMMEDIATE</span>
           </div>
           <div className="table-container">
-            <table className="submissions-table">
+            <table className="dashboard-table">
               <thead>
                 <tr>
                   <th>Type</th>
@@ -1078,7 +1085,7 @@ function Dashboard({ onNavigateToReport }) {
               <tbody>
                 {currentImmediateSubmissions.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    <td colSpan="6" style={{textAlign: 'center', padding: '20px', color: 'var(--text-primary)'}}>
                       No immediate severity reports found
                     </td>
                   </tr>
@@ -1090,7 +1097,7 @@ function Dashboard({ onNavigateToReport }) {
                       <td>{submission.location}</td>
                       <td>{formatDate(submission.date)}</td>
                       <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
+                        <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
                           {formatStatus(submission.status)}
                         </span>
                       </td>
@@ -1098,7 +1105,7 @@ function Dashboard({ onNavigateToReport }) {
                         <div className="action-buttons">
                           <button 
                             className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
+                            onClick={() => navigate(`/report/${submission.id}`)}
                           >
                             View
                           </button>
@@ -1169,7 +1176,7 @@ function Dashboard({ onNavigateToReport }) {
               <tbody>
                 {currentHighSubmissions.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    <td colSpan="6" style={{textAlign: 'center', padding: '20px', color: 'var(--text-primary)'}}>
                       No high severity reports found
                     </td>
                   </tr>
@@ -1181,7 +1188,7 @@ function Dashboard({ onNavigateToReport }) {
                       <td>{submission.location}</td>
                       <td>{formatDate(submission.date)}</td>
                       <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
+                        <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
                           {formatStatus(submission.status)}
                         </span>
                       </td>
@@ -1189,7 +1196,7 @@ function Dashboard({ onNavigateToReport }) {
                         <div className="action-buttons">
                           <button 
                             className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
+                            onClick={() => navigate(`/report/${submission.id}`)}
                           >
                             View
                           </button>
@@ -1260,7 +1267,7 @@ function Dashboard({ onNavigateToReport }) {
               <tbody>
                 {currentModerateSubmissions.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    <td colSpan="6" style={{textAlign: 'center', padding: '20px', color: 'var(--text-primary)'}}>
                       No moderate severity reports found
                     </td>
                   </tr>
@@ -1272,7 +1279,7 @@ function Dashboard({ onNavigateToReport }) {
                       <td>{submission.location}</td>
                       <td>{formatDate(submission.date)}</td>
                       <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
+                        <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
                           {formatStatus(submission.status)}
                         </span>
                       </td>
@@ -1280,7 +1287,7 @@ function Dashboard({ onNavigateToReport }) {
                         <div className="action-buttons">
                           <button 
                             className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
+                            onClick={() => navigate(`/report/${submission.id}`)}
                           >
                             View
                           </button>
@@ -1351,7 +1358,7 @@ function Dashboard({ onNavigateToReport }) {
               <tbody>
                 {currentLowSubmissions.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    <td colSpan="6" style={{textAlign: 'center', padding: '20px', color: 'var(--text-primary)'}}>
                       No low severity reports found
                     </td>
                   </tr>
@@ -1363,7 +1370,7 @@ function Dashboard({ onNavigateToReport }) {
                       <td>{submission.location}</td>
                       <td>{formatDate(submission.date)}</td>
                       <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
+                        <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
                           {formatStatus(submission.status)}
                         </span>
                       </td>
@@ -1371,7 +1378,7 @@ function Dashboard({ onNavigateToReport }) {
                         <div className="action-buttons">
                           <button 
                             className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
+                            onClick={() => navigate(`/report/${submission.id}`)}
                           >
                             View
                           </button>

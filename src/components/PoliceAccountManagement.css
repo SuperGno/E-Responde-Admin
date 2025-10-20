@@ -1,8 +1,8 @@
 .police-management-container {
   padding: 2rem;
-  background: #1a1a1a;
+  background: var(--bg-primary);
   min-height: 100vh;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .police-management-header {
@@ -13,25 +13,23 @@
   font-size: 2.5rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
 
 .police-management-header p {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 1.1rem;
   margin: 0;
 }
 
 /* Police Account Creation Styles */
 .police-account-section {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .section-header {
@@ -40,14 +38,14 @@
   align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .section-header h2 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .section-info {
@@ -56,7 +54,7 @@
 }
 
 .info-text {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
@@ -89,10 +87,10 @@
 }
 
 .police-form-container {
-  background: #1f2937;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   padding: 2rem;
-  border: 1px solid #374151;
+  border: 1px solid var(--border-primary);
 }
 
 .police-form {
@@ -115,17 +113,17 @@
 
 .form-group label {
   font-weight: 600;
-  color: #d1d5db;
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
 .form-group input,
 .form-group select {
-  background: #374151;
-  border: 1px solid #4b5563;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   padding: 0.75rem;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 0.875rem;
   transition: all 0.2s ease;
 }
@@ -133,17 +131,17 @@
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .form-group input::placeholder {
-  color: #9ca3af;
+  color: var(--text-secondary);
 }
 
 .form-group select option {
-  background: #374151;
-  color: #ffffff;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .form-error {
@@ -241,10 +239,11 @@
 
 /* Police Accounts List Section */
 .police-accounts-section {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .section-info {
@@ -254,7 +253,7 @@
 }
 
 .info-text {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
@@ -340,12 +339,12 @@
 .police-accounts-table {
   width: 100%;
   border-collapse: collapse;
-  background: #1f2937;
+  background: var(--bg-tertiary);
 }
 
 .police-accounts-table th {
-  background: #374151;
-  color: #ffffff;
+  background: var(--bg-quaternary);
+  color: var(--text-primary);
   font-weight: 600;
   padding: 1rem;
   text-align: left;
@@ -356,17 +355,17 @@
 
 .police-accounts-table td {
   padding: 1rem;
-  border-bottom: 1px solid #374151;
-  color: #d1d5db;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary);
 }
 
 .police-accounts-table tr:hover {
-  background: #374151;
+  background: var(--bg-quaternary);
 }
 
 .account-number {
   font-weight: 600;
-  color: #667eea;
+  color: var(--accent-primary);
   text-align: center;
   width: 60px;
 }
@@ -392,13 +391,13 @@
 }
 
 .account-email {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
 }
 
 .account-rank {
-  color: #fbbf24;
+  color: var(--warning);
   font-weight: 500;
   font-size: 0.875rem;
 }
@@ -427,12 +426,12 @@
 }
 
 .account-date {
-  color: #9ca3af;
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
 .account-id {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
 }
@@ -451,7 +450,7 @@
 }
 
 .delete-btn {
-  background: #ef4444;
+  background: var(--error);
   color: white;
   border: none;
   padding: 0.5rem;
@@ -466,7 +465,7 @@
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--error);
   transform: translateY(-1px);
 }
 
@@ -500,11 +499,12 @@
 }
 
 .modal-content {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 12px;
   max-width: 500px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-primary);
+  border: 1px solid var(--border-primary);
   animation: modalSlideIn 0.3s ease;
 }
 
@@ -532,13 +532,13 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .modal-close {
   background: none;
   border: none;
-  color: #9ca3af;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 6px;
@@ -546,8 +546,8 @@
 }
 
 .modal-close:hover {
-  background: #374151;
-  color: #ffffff;
+  background: var(--bg-quaternary);
+  color: var(--text-primary);
 }
 
 .modal-body {
@@ -556,18 +556,18 @@
 }
 
 .warning-icon {
-  color: #f59e0b;
+  color: var(--warning);
   margin-bottom: 1rem;
 }
 
 .modal-body p {
   margin: 0 0 1rem 0;
-  color: #d1d5db;
+  color: var(--text-primary);
   line-height: 1.6;
 }
 
 .warning-text {
-  color: #fbbf24 !important;
+  color: var(--warning) !important;
   font-size: 0.875rem;
   background: rgba(251, 191, 36, 0.1);
   padding: 1rem;
@@ -584,9 +584,9 @@
 }
 
 .cancel-btn {
-  background: #6b7280;
-  color: white;
-  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
@@ -596,12 +596,12 @@
 }
 
 .cancel-btn:hover {
-  background: #4b5563;
+  background: var(--bg-quaternary);
   transform: translateY(-1px);
 }
 
 .confirm-delete-btn {
-  background: #ef4444;
+  background: var(--error);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -616,7 +616,7 @@
 }
 
 .confirm-delete-btn:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--error);
   transform: translateY(-1px);
 }
 

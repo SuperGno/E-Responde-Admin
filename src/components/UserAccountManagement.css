@@ -1,8 +1,8 @@
 .user-management-container {
   padding: 2rem;
-  background: #1a1a1a;
+  background: var(--bg-primary);
   min-height: 100vh;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .user-management-header {
@@ -13,14 +13,11 @@
   font-size: 2.5rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
 
 .user-management-header p {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 1.1rem;
   margin: 0;
 }
@@ -30,45 +27,46 @@
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
   border-radius: 12px;
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10px 25px var(--shadow-primary);
   max-width: 400px;
 }
 
 .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-tertiary);
   border-radius: 50%;
   width: 60px;
   height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-primary);
 }
 
 .stat-content h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
 }
 
 .stat-number {
   margin: 0;
   font-size: 2.5rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
 }
 
 .error-message {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
   padding: 1rem;
   border-radius: 8px;
   display: flex;
@@ -102,10 +100,10 @@
 }
 
 .users-table-container {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px var(--shadow-primary);
 }
 
 .table-header {
@@ -121,12 +119,12 @@
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--bg-primary);
 }
 
 .refresh-btn {
-  background: #667eea;
-  color: white;
+  background: var(--accent-primary);
+  color: var(--text-primary);
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -140,7 +138,7 @@
 }
 
 .refresh-btn:hover {
-  background: #5a67d8;
+  background: var(--accent-secondary);
   transform: translateY(-1px);
 }
 
@@ -175,12 +173,12 @@
 .users-table {
   width: 100%;
   border-collapse: collapse;
-  background: #1f2937;
+  background: var(--bg-tertiary);
 }
 
 .users-table th {
-  background: #374151;
-  color: #ffffff;
+  background: var(--bg-quaternary);
+  color: var(--bg-primary);
   font-weight: 600;
   padding: 1rem;
   text-align: left;
@@ -196,7 +194,7 @@
 }
 
 .users-table tr:hover {
-  background: #374151;
+  background: var(--bg-quaternary);
 }
 
 .user-number {
@@ -221,7 +219,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 0.875rem;
 }
@@ -258,16 +256,22 @@
 
 .status-badge.active {
   background: #10b981;
-  color: white;
+  color: var(--text-primary);
 }
 
 .status-badge.suspended {
   background: #ef4444;
-  color: white;
+  color: var(--text-primary);
 }
 
 .user-actions {
   text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -292,7 +296,7 @@
 
 .suspend-btn {
   background: #ef4444;
-  color: white;
+  color: var(--text-primary);
 }
 
 .suspend-btn:hover:not(:disabled) {
@@ -302,7 +306,7 @@
 
 .unsuspend-btn {
   background: #10b981;
-  color: white;
+  color: var(--text-primary);
 }
 
 .unsuspend-btn:hover:not(:disabled) {
@@ -368,4 +372,13 @@
     height: 28px;
     font-size: 0.75rem;
   }
+}
+
+.cleanup-btn {
+  background: #f59e0b;
+  color: var(--text-primary);
+}
+
+.cleanup-btn:hover:not(:disabled) {
+  background: #d97706;
 }
