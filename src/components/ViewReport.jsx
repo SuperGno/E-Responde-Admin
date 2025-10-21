@@ -220,10 +220,13 @@ function ViewReport({ reportId, onBackToDashboard }) {
 
         console.log('Police with distance:', policeWithDistance)
 
-        // Get top 3 nearest police officers
-        const nearestPolice = policeWithDistance.slice(0, 3)
+        // Filter out already dispatched officers and get top 3 nearest available police officers
+        const availablePolice = policeWithDistance.filter(police => 
+          police.status !== 'Dispatched' && police.status !== 'Busy'
+        )
+        const nearestPolice = availablePolice.slice(0, 3)
         
-        console.log('Nearest police:', nearestPolice)
+        console.log('Available police:', nearestPolice)
         setPoliceRecommendations(nearestPolice)
       } else {
         console.log('No police data found in database')

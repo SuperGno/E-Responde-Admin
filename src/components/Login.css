@@ -29,7 +29,7 @@
   justify-content: center !important;
   align-items: center !important;
   min-height: 100vh !important;
-  background: #000000 !important;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%) !important;
   padding: 2rem !important;
   box-sizing: border-box !important;
   width: 100vw !important;
@@ -41,16 +41,15 @@
 }
 
 .login-card {
-  background: #1a1a1a !important;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%) !important;
+  border: 2px solid var(--border-primary) !important;
   padding: 3rem 2.5rem !important;
-  border-radius: 16px !important;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 60px var(--shadow-primary) !important;
   width: 100% !important;
-  max-width: 420px !important;
+  max-width: 450px !important;
   position: relative !important;
   overflow: hidden !important;
-  margin: 0 auto !important;
-  border: 2px solid #374151 !important;
 }
 
 .login-card::before {
@@ -60,15 +59,17 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: #ffffff;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  z-index: 1;
 }
+
 
 .login-card h1 {
   text-align: center;
-  color: #ffffff;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.5rem;
+  font-weight: 800;
   letter-spacing: -0.025em;
 }
 
@@ -76,8 +77,8 @@
   text-align: center;
   color: var(--text-secondary);
   margin-bottom: 2.5rem;
-  font-size: 1.1rem;
-  font-weight: 400;
+  font-size: 1.125rem;
+  font-weight: 500;
 }
 
 .form-group {
@@ -87,63 +88,68 @@
 .form-group label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 1rem;
 }
 
 .form-group input {
   width: 100%;
-  padding: 1rem 1.25rem;
-  border: 2px solid #374151;
+  padding: 1.125rem 1.5rem;
+  border: 2px solid var(--border-primary);
   border-radius: 12px;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
-  background: #2d2d2d;
-  color: #ffffff !important;
+  background: var(--bg-primary);
+  color: var(--text-primary) !important;
+  font-weight: 500;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #3b82f6;
-  background: #404040;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  transform: translateY(-1px);
-  color: #ffffff !important;
+  border-color: var(--accent-primary);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  color: var(--text-primary) !important;
 }
 
 .form-group input::placeholder {
-  color: #9ca3af;
+  color: var(--text-tertiary);
+  font-weight: 500;
 }
 
 .error-message {
-  color: var(--error);
-  background: var(--bg-tertiary);
-  padding: 1rem;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 2px solid #fca5a5;
+  padding: 1.25rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  border-left: 4px solid var(--error);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .login-btn {
   width: 100%;
-  background: #ffffff;
-  color: #000000;
-  border: none;
-  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  color: var(--text-primary);
+  border: 2px solid var(--border-primary);
+  padding: 1.25rem 1.5rem;
   border-radius: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.125rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  box-shadow: 0 8px 25px var(--shadow-primary);
 }
 
 .login-btn::before {
@@ -158,8 +164,9 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px var(--shadow-primary);
+  border-color: var(--accent-primary);
 }
 
 .login-btn:hover:not(:disabled)::before {

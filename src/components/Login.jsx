@@ -170,23 +170,61 @@ function Login({ onLoginSuccess }) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       
-      console.log('Admin logged in:', user.uid)
+      console.log('User logged in:', user.uid)
 
-      // Verify this is an admin account by checking Realtime Database
-      const adminRef = ref(realtimeDb, 'admin_dashboard_account')
-      const snapshot = await get(adminRef)
+      // Check all possible account types to determine user role
+      let accountType = null
+      let accountData = null
       
-      if (!snapshot.exists()) {
-        setError('Admin account not found in database.')
-        setLoading(false)
-        return
-      }
-
-      const adminData = snapshot.val()
-
-      // Check if the logged-in user is the admin
-      if (adminData.userId !== user.uid) {
-        setError('This account is not authorized as an admin.')
+      try {
+        // Check for admin account first
+        const adminSnap = await get(ref(realtimeDb, 'admin_dashboard_account'))
+        if (adminSnap.exists()) {
+          const adminData = adminSnap.val()
+          if (adminData.userId === user.uid || adminData.authUid === user.uid) {
+            accountType = 'admin'
+            accountData = adminData
+            console.log('Admin account verified for user', user.uid)
+          }
+        }
+        
+        // If not admin, check for civilian account
+        if (!accountType) {
+          const civilianSnap = await get(ref(realtimeDb, `civilian/civilian account/${user.uid}`))
+          if (civilianSnap.exists()) {
+            accountType = 'civilian'
+            accountData = civilianSnap.val()
+            console.log('Civilian account verified for user', user.uid)
+          }
+        }
+        
+        // If not civilian, check for police account
+        if (!accountType) {
+          const policeSnap = await get(ref(realtimeDb, `police/police account/${user.uid}`))
+          if (policeSnap.exists()) {
+            accountType = 'police'
+            accountData = policeSnap.val()
+            console.log('Police account verified for user', user.uid)
+          }
+        }
+        
+        // If no account found in any category
+        if (!accountType) {
+          setError('Account not found. Please ensure you have a valid account (Admin, Civilian, or Police).')
+          setLoading(false)
+          return
+        }
+        
+        console.log('Login successful for', accountType, 'account:', user.uid)
+        console.log('Account data:', accountData)
+        
+        // Store account type in localStorage for debugging
+        localStorage.setItem('userAccountType', accountType)
+        localStorage.setItem('userRole', accountData?.role || accountType)
+        
+      } catch (error) {
+        console.error('Error verifying account:', error)
+        setError('Error verifying account. Please try again.')
         setLoading(false)
         return
       }

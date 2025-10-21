@@ -1,0 +1,98 @@
+/* Account Management Component Styles */
+
+.account-management-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.account-management-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2.5rem;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  border-radius: 16px;
+  border: 2px solid var(--border-primary);
+  box-shadow: 0 8px 25px var(--shadow-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.account-management-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+}
+
+.account-management-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.account-management-header p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.account-content {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  border: 2px solid var(--border-primary);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px var(--shadow-primary);
+  padding: 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.account-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .account-management-container {
+    padding: 1rem;
+  }
+  
+  .account-management-header {
+    padding: 2rem 1.5rem;
+  }
+  
+  .account-management-header h1 {
+    font-size: 2rem;
+  }
+  
+  .account-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .account-management-header h1 {
+    font-size: 1.75rem;
+  }
+  
+  .account-management-header p {
+    font-size: 1rem;
+  }
+}

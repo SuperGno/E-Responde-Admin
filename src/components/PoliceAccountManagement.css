@@ -1,35 +1,64 @@
 .police-management-container {
   padding: 2rem;
-  background: var(--bg-primary);
+  background: #f8fafc;
   min-height: 100vh;
-  color: var(--text-primary);
+  color: #1e293b;
 }
 
 .police-management-header {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2rem;
   margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.police-management-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 12px 12px 0 0;
 }
 
 .police-management-header h1 {
   font-size: 2.5rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: var(--text-primary);
+  color: #1e293b;
 }
 
 .police-management-header p {
-  color: var(--text-secondary);
+  color: #6b7280;
   font-size: 1.1rem;
   margin: 0;
 }
 
 /* Police Account Creation Styles */
 .police-account-section {
-  background: var(--bg-secondary);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: var(--shadow-primary);
-  border: 1px solid var(--border-primary);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.police-account-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 12px 12px 0 0;
 }
 
 .section-header {
@@ -44,8 +73,8 @@
 .section-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .section-info {
@@ -59,8 +88,8 @@
 }
 
 .toggle-form-btn {
-  background: #667eea;
-  color: white;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
@@ -69,28 +98,32 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 .toggle-form-btn:hover {
-  background: #5a67d8;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
 }
 
 .toggle-form-btn.active {
-  background: #ef4444;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
 }
 
 .toggle-form-btn.active:hover {
-  background: #dc2626;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
 }
 
 .police-form-container {
-  background: var(--bg-tertiary);
+  background: #f8fafc;
   border-radius: 8px;
   padding: 2rem;
-  border: 1px solid var(--border-primary);
+  border: 1px solid #e5e7eb;
 }
 
 .police-form {
@@ -112,36 +145,37 @@
 }
 
 .form-group label {
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: #374151;
   font-size: 0.875rem;
 }
 
 .form-group input,
 .form-group select {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
   padding: 0.75rem;
-  color: var(--text-primary);
+  color: #1e293b;
   font-size: 0.875rem;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-group input::placeholder {
-  color: var(--text-secondary);
+  color: #9ca3af;
 }
 
 .form-group select option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: #ffffff;
+  color: #1e293b;
 }
 
 .form-error {
@@ -199,23 +233,25 @@
 }
 
 .submit-btn {
-  background: #10b981;
-  color: white;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #059669;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
 }
 
 .submit-btn:disabled {
@@ -239,11 +275,23 @@
 
 /* Police Accounts List Section */
 .police-accounts-section {
-  background: var(--bg-secondary);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: var(--shadow-primary);
-  border: 1px solid var(--border-primary);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.police-accounts-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 12px 12px 0 0;
 }
 
 .section-info {
@@ -258,23 +306,25 @@
 }
 
 .refresh-btn {
-  background: #667eea;
-  color: white;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 .refresh-btn:hover {
-  background: #5a67d8;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
 }
 
 .error-message {
@@ -339,33 +389,34 @@
 .police-accounts-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--bg-tertiary);
+  background: #ffffff;
 }
 
 .police-accounts-table th {
-  background: var(--bg-quaternary);
-  color: var(--text-primary);
-  font-weight: 600;
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 700;
   padding: 1rem;
   text-align: left;
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .police-accounts-table td {
   padding: 1rem;
-  border-bottom: 1px solid var(--border-primary);
-  color: var(--text-primary);
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
 }
 
 .police-accounts-table tr:hover {
-  background: var(--bg-quaternary);
+  background: #f8fafc;
 }
 
 .account-number {
-  font-weight: 600;
-  color: var(--accent-primary);
+  font-weight: 700;
+  color: #3b82f6;
   text-align: center;
   width: 60px;
 }
@@ -374,31 +425,34 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .account-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 600;
+  color: #ffffff;
+  font-weight: 700;
   font-size: 0.875rem;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 .account-email {
-  color: var(--text-secondary);
+  color: #6b7280;
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .account-rank {
-  color: var(--warning);
-  font-weight: 500;
+  color: #f59e0b;
+  font-weight: 600;
   font-size: 0.875rem;
 }
 
@@ -407,33 +461,40 @@
 }
 
 .status-badge {
-  padding: 0.25rem 0.75rem;
+  padding: 0.375rem 0.875rem;
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border: 1px solid transparent;
 }
 
 .status-badge.active {
-  background: #10b981;
-  color: white;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: 1px solid #047857;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .status-badge.inactive {
-  background: #ef4444;
-  color: white;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  border: 1px solid #b91c1c;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
 }
 
 .account-date {
-  color: var(--text-secondary);
+  color: #9ca3af;
   font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .account-id {
-  color: var(--text-secondary);
+  color: #9ca3af;
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .inactive-account {
@@ -450,11 +511,11 @@
 }
 
 .delete-btn {
-  background: var(--error);
-  color: white;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
   border: none;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -462,11 +523,13 @@
   transition: all 0.2s ease;
   min-width: 36px;
   height: 36px;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: var(--error);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
 }
 
 .delete-btn:disabled {

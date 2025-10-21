@@ -1,23 +1,33 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { getAuth, signOut } from 'firebase/auth'
+import { useAccountType } from '../contexts/AccountTypeContext'
+import { useState } from 'react'
 
 function LinkItem({ to, label, children }) {
   return (
-    <NavLink to={to} className={({ isActive }) => (
-      `nav-item ${isActive ? 'active' : ''}`
-    )}>
-      {({ isActive }) => (
-        <>
-          <span className="nav-icon">{children}</span>
-          <span className="nav-label">{label}</span>
-        </>
-      )}
+    <NavLink 
+      to={to} 
+      className={({ isActive }) => 
+        `flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+          isActive 
+            ? 'bg-black text-white shadow-md' 
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        }`
+      }
+    >
+      <span className="flex-shrink-0 w-5 h-5">{children}</span>
+      <span>{label}</span>
     </NavLink>
   )
 }
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { accountType, switchAccountType } = useAccountType()
+  const [showAccountSubmenu, setShowAccountSubmenu] = useState(false)
+  
+  const isAccountsPage = location.pathname === '/accounts'
 
   const handleLogout = async () => {
     try {
@@ -29,24 +39,36 @@ export default function Sidebar() {
     }
   }
 
+  const handleAccountManagementClick = (e) => {
+    e.preventDefault()
+    setShowAccountSubmenu(!showAccountSubmenu)
+  }
+
+  const handleAccountTypeSelect = (type) => {
+    switchAccountType(type)
+    navigate('/accounts')
+    setShowAccountSubmenu(false)
+  }
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-            <div className="sidebar-brand">
-              <div className="brand-logo">
-                <img 
-                  src="/Admin-E-Responde.png" 
-                  alt="E-Responde Logo" 
-                  style={{width: '48px', height: '48px', objectFit: 'cover', borderRadius: '50%'}}
-                />
-              </div>
-              <div className="brand-text">
-                <h2>E-Responde</h2>
-              </div>
-            </div>
+    <aside className="fixed left-0 top-0 w-72 h-full bg-white border-r border-gray-200 shadow-md z-50 lg:translate-x-0 -translate-x-full transition-transform duration-300">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100">
+            <img 
+              src="/Admin-E-Responde.png" 
+              alt="E-Responde Logo" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-black">E-Responde</h2>
+            <p className="text-xs text-gray-500 uppercase tracking-wider">Admin Dashboard</p>
+          </div>
+        </div>
       </div>
       
-      <nav className="sidebar-nav">
+      <nav className="flex-1 py-4 overflow-y-auto">
         <LinkItem to="/" label="Dashboard">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="7" height="7"/>
@@ -72,33 +94,104 @@ export default function Sidebar() {
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
           </svg>
         </LinkItem>
-        <LinkItem to="/accounts" label="Account Management">
+        <LinkItem to="/voip" label="VoIP Management">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
           </svg>
         </LinkItem>
+        <LinkItem to="/sos" label="SOS Management">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6"/>
+          </svg>
+        </LinkItem>
+        <LinkItem to="/monitoring" label="Real-time Monitoring">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6"/>
+            <path d="M21 12h-6m-6 0H3"/>
+            <path d="M12 3v6m0 6v6"/>
+          </svg>
+        </LinkItem>
+        <LinkItem to="/notifications" label="Notification Management">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </LinkItem>
+        <LinkItem to="/emergency-contacts" label="Emergency Contacts">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </LinkItem>
+        <div className="px-2">
+          <button 
+            className={`flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+              isAccountsPage 
+                ? 'bg-black text-white shadow-md' 
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+            onClick={handleAccountManagementClick}
+          >
+            <div className="flex items-center gap-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>Account Management</span>
+            </div>
+            <svg 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2"
+              className={`transition-transform duration-200 ${showAccountSubmenu ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6,9 12,15 18,9"></polyline>
+            </svg>
+          </button>
+          
+          {showAccountSubmenu && (
+            <div className="mt-2 ml-4 space-y-1">
+              <button 
+                className={`flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  accountType === 'civilian' 
+                    ? 'bg-gray-200 text-gray-900' 
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+                onClick={() => handleAccountTypeSelect('civilian')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="8.5" cy="7" r="4"/>
+                </svg>
+                <span>Civilian Accounts</span>
+              </button>
+              <button 
+                className={`flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  accountType === 'police' 
+                    ? 'bg-gray-200 text-gray-900' 
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+                onClick={() => handleAccountTypeSelect('police')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                <span>Police Accounts</span>
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
       
-      <div className="sidebar-footer">
+      <div className="p-4 border-t border-gray-200">
         <button 
           onClick={handleLogout}
-          className="logout-btn"
-          style={{
-            background: '#ef4444',
-            color: 'white',
-            border: 'none',
-            padding: '0.75rem 1rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            width: '100%',
-            transition: 'all 0.2s ease'
-          }}
+          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-status-danger text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-all duration-200 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

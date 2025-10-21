@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getDatabase, ref, get } from 'firebase/database'
+import { getDatabase, ref, get, onValue } from 'firebase/database'
 import { app } from '../firebase'
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -106,34 +106,58 @@ function Heatmap() {
   const [radius, setRadius] = useState(50)
   const [showConcentricCircles, setShowConcentricCircles] = useState(false)
   const [referencePoint, setReferencePoint] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [reportsPerPage] = useState(6)
+  const [lastUpdate, setLastUpdate] = useState(null)
 
+  // Real-time data listener
   useEffect(() => {
-    const fetchReports = async () => {
+    const db = getDatabase(app)
+    const reportsRef = ref(db, 'civilian/civilian crime reports')
+    
+    console.log('Setting up real-time listener for heatmap...')
+    
+    const unsubscribe = onValue(reportsRef, (snapshot) => {
       try {
         setLoading(true)
-        const db = getDatabase(app)
-        const reportsRef = ref(db, 'civilian/civilian crime reports')
-        const snapshot = await get(reportsRef)
-
+        setError('')
+        
         if (snapshot.exists()) {
           const reportsData = snapshot.val()
           const reportsArray = Object.entries(reportsData).map(([key, data]) => ({
             id: key,
-            ...data
+            ...data,
+            // Ensure location data is properly formatted
+            location: data.location || {
+              latitude: data.latitude || data.lat,
+              longitude: data.longitude || data.lng,
+              address: data.address || data.location_address || 'Unknown location'
+            }
           }))
+          
           setReports(reportsArray)
+          setLastUpdate(new Date())
+          console.log(`Real-time update: Loaded ${reportsArray.length} reports`)
         } else {
           setReports([])
+          setError('No crime reports found. Reports will appear here when submitted from the mobile app.')
         }
       } catch (err) {
-        console.error('Error fetching reports:', err)
-        setError('Failed to load crime reports')
+        console.error('Error processing real-time data:', err)
+        setError(`Failed to process crime reports: ${err.message}`)
       } finally {
         setLoading(false)
       }
-    }
+    }, (error) => {
+      console.error('Real-time listener error:', error)
+      setError(`Database connection error: ${error.message}`)
+      setLoading(false)
+    })
 
-    fetchReports()
+    return () => {
+      console.log('Cleaning up real-time listener')
+      unsubscribe()
+    }
   }, [])
 
   // Filter reports based on selected criteria
@@ -164,37 +188,75 @@ function Heatmap() {
     return filtered
   }
 
-  // Create heatmap data points
+  // Create heatmap data points with proper intensity scaling
   const createHeatmapData = () => {
     const filteredReports = getFilteredReports()
     const heatmapPoints = []
+    
+    console.log(`Creating heatmap data from ${filteredReports.length} filtered reports`)
     
     // Group reports by location and create weighted points
     const locationGroups = new Map()
     
     filteredReports.forEach(report => {
-      const lat = parseFloat(report.location.latitude)
-      const lng = parseFloat(report.location.longitude)
-      const key = `${lat.toFixed(4)},${lng.toFixed(4)}`
-      
-      if (locationGroups.has(key)) {
-        locationGroups.get(key).count++
-      } else {
-        locationGroups.set(key, {
-          lat,
-          lng,
-          count: 1,
-          reports: [report]
-        })
+      try {
+        // Handle different location data formats from mobile app
+        let lat, lng
+        
+        if (report.location) {
+          lat = parseFloat(report.location.latitude || report.location.lat)
+          lng = parseFloat(report.location.longitude || report.location.lng)
+        } else {
+          // Fallback to direct properties
+          lat = parseFloat(report.latitude || report.lat)
+          lng = parseFloat(report.longitude || report.lng)
+        }
+        
+        // Validate coordinates
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+          console.warn('Invalid coordinates for report:', report.id, { lat, lng })
+          return
+        }
+        
+        // Check if coordinates are within reasonable bounds (Philippines)
+        if (lat < 4 || lat > 22 || lng < 116 || lng > 127) {
+          console.warn('Coordinates outside Philippines bounds:', { lat, lng })
+          return
+        }
+        
+        const key = `${lat.toFixed(4)},${lng.toFixed(4)}`
+        
+        if (locationGroups.has(key)) {
+          locationGroups.get(key).count++
+          locationGroups.get(key).reports.push(report)
+        } else {
+          locationGroups.set(key, {
+            lat,
+            lng,
+            count: 1,
+            reports: [report]
+          })
+        }
+      } catch (error) {
+        console.warn('Error processing report for heatmap:', report.id, error)
       }
     })
     
-    // Convert to heatmap format with intensity based on crime count
+    console.log(`Grouped into ${locationGroups.size} location clusters`)
+    
+    // Convert to heatmap format with intensity based on crime count and user intensity setting
     locationGroups.forEach(group => {
-      const intensity = Math.min(1.0, group.count / 10) // Normalize to 0-1, max at 10 crimes
-      heatmapPoints.push([group.lat, group.lng, intensity])
+      // Base intensity from crime count (0-1)
+      const baseIntensity = Math.min(1.0, group.count / 10)
+      // Apply user intensity multiplier (1-10 scale to 0.1-1.0 multiplier)
+      const userIntensityMultiplier = intensity / 10
+      // Final intensity
+      const finalIntensity = Math.min(1.0, baseIntensity * userIntensityMultiplier)
+      
+      heatmapPoints.push([group.lat, group.lng, finalIntensity])
     })
     
+    console.log(`Created ${heatmapPoints.length} heatmap points with intensity multiplier: ${intensity}/10`)
     return heatmapPoints
   }
 
@@ -218,10 +280,43 @@ function Heatmap() {
     return Math.max(0.3, Math.min(0.9, intensity / 10))
   }
 
+  // Pagination logic for reports
+  const getPaginatedReports = () => {
+    const filteredReports = getFilteredReports()
+    const startIndex = (currentPage - 1) * reportsPerPage
+    const endIndex = startIndex + reportsPerPage
+    return filteredReports.slice(startIndex, endIndex)
+  }
+
+  const totalPages = Math.ceil(getFilteredReports().length / reportsPerPage)
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedCrimeType, timeRange])
+
   if (loading) {
     return (
       <div className="heatmap-container">
-        <div className="loading">Loading heatmap data...</div>
+        <div className="loading">
+          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>🗺️</div>
+          <div>Loading heatmap data...</div>
+          <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', opacity: 0.7 }}>
+            Connecting to mobile app data...
+          </div>
+        </div>
       </div>
     )
   }
@@ -229,7 +324,19 @@ function Heatmap() {
   if (error) {
     return (
       <div className="heatmap-container">
-        <div className="error">Error: {error}</div>
+        <div className="error">
+          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>⚠️</div>
+          <div>Error: {error}</div>
+          <div style={{ fontSize: '0.9rem', marginTop: '1rem', opacity: 0.8 }}>
+            <strong>Troubleshooting:</strong>
+            <ul style={{ textAlign: 'left', marginTop: '0.5rem' }}>
+              <li>Ensure the mobile app is connected to the same Firebase project</li>
+              <li>Check that crime reports are being submitted from the mobile app</li>
+              <li>Verify Firebase database rules allow read access</li>
+              <li>Try refreshing the page</li>
+            </ul>
+          </div>
+        </div>
       </div>
     )
   }
@@ -239,6 +346,47 @@ function Heatmap() {
       <div className="heatmap-header">
         <h1>Crime Heatmap</h1>
         <p>Visual representation of crime incidents across the area</p>
+        
+        {/* Real-time Data Status */}
+        <div style={{ 
+          marginTop: '1.5rem', 
+          padding: '1.5rem', 
+          background: '#f8fafc', 
+          borderRadius: '12px', 
+          border: '1px solid #e5e7eb',
+          fontSize: '0.9rem'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <strong style={{ color: '#1e293b', fontSize: '1rem' }}>📊 Real-time Data Status</strong>
+            {lastUpdate && (
+              <small style={{ color: '#6b7280' }}>
+                Last updated: {lastUpdate.toLocaleTimeString()}
+              </small>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              <strong style={{ color: '#1e293b' }}>Total Reports:</strong> {reports.length}
+            </div>
+            <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              <strong style={{ color: '#1e293b' }}>Filtered Reports:</strong> {getFilteredReports().length}
+            </div>
+            <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              <strong style={{ color: '#1e293b' }}>Heatmap Points:</strong> {createHeatmapData().length}
+            </div>
+            <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              <strong style={{ color: '#1e293b' }}>With Location:</strong> {reports.filter(r => r.location?.latitude && r.location?.longitude).length}
+            </div>
+          </div>
+          {reports.length === 0 && (
+            <div style={{ marginTop: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '8px', border: '1px solid #f59e0b' }}>
+              <strong style={{ color: '#92400e' }}>💡 Real-time Connection:</strong> 
+              <p style={{ margin: '0.5rem 0', color: '#92400e' }}>
+                No reports found. The heatmap will automatically update when new crime reports are submitted from the mobile app.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="heatmap-content">
@@ -412,27 +560,81 @@ function Heatmap() {
       </div>
 
       <div className="reports-list">
-        <h3>Recent Reports with Location</h3>
-        <div className="reports-grid">
-          {getFilteredReports()
-            .slice(0, 6)
-            .map((report) => (
-              <div key={report.id} className="report-item">
-                <div className="report-info">
-                  <h4>{report.crimeType || 'Unknown'}</h4>
-                  <p>{report.location?.address || 'No address'}</p>
-                  <span className="report-date">
-                    {new Date(report.dateTime || report.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="report-coords">
-                  <small>
-                    {report.location?.latitude?.toFixed(4)}, {report.location?.longitude?.toFixed(4)}
-                  </small>
-                </div>
-              </div>
-            ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h3>Recent Reports with Location</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+              Page {currentPage} of {totalPages} ({getFilteredReports().length} total)
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: currentPage === 1 ? '#f3f4f6' : '#3b82f6',
+                  color: currentPage === 1 ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Previous
+              </button>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: currentPage === totalPages ? '#f3f4f6' : '#3b82f6',
+                  color: currentPage === totalPages ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
+        <div className="reports-grid">
+          {getPaginatedReports().map((report) => (
+            <div key={report.id} className="report-item">
+              <div className="report-info">
+                <h4>{report.crimeType || 'Unknown'}</h4>
+                <p>{report.location?.address || 'No address'}</p>
+                <span className="report-date">
+                  {new Date(report.dateTime || report.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="report-coords">
+                <small>
+                  {report.location?.latitude?.toFixed(4)}, {report.location?.longitude?.toFixed(4)}
+                </small>
+              </div>
+            </div>
+          ))}
+        </div>
+        {getFilteredReports().length === 0 && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '2rem', 
+            color: '#6b7280',
+            background: '#f8fafc',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <p>No reports found with the current filters.</p>
+            <small>Try adjusting the crime type or time range filters.</small>
+          </div>
+        )}
       </div>
     </div>
   )
