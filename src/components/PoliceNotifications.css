@@ -2,7 +2,7 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
-  background: #f8fafc;
+  background: var(--bg-primary);
   min-height: 100vh;
 }
 
@@ -12,18 +12,18 @@
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--border-primary);
 }
 
 .notifications-header h2 {
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 1.875rem;
   font-weight: 700;
   margin: 0;
 }
 
 .unread-badge {
-  background: #dc2626;
+  background: var(--error);
   color: white;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
@@ -34,23 +34,23 @@
 .loading, .error {
   text-align: center;
   padding: 3rem;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 1.125rem;
 }
 
 .error {
-  color: #dc2626;
+  color: var(--error);
 }
 
 .no-notifications {
   text-align: center;
   padding: 4rem 2rem;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .no-notifications svg {
   margin-bottom: 1rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .no-notifications p {
@@ -65,16 +65,17 @@
 }
 
 .notification-card {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-left: 4px solid #3b82f6;
+  box-shadow: var(--shadow-primary);
+  border-left: 4px solid var(--accent-primary);
+  border: 1px solid var(--border-primary);
   transition: all 0.2s ease;
 }
 
 .notification-card.unread {
-  border-left-color: #dc2626;
+  border-left-color: var(--error);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
@@ -97,7 +98,7 @@
 }
 
 .notification-title h3 {
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
@@ -106,13 +107,13 @@
 .unread-indicator {
   width: 8px;
   height: 8px;
-  background: #dc2626;
+  background: var(--error);
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .notification-time {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   white-space: nowrap;
 }
@@ -122,21 +123,21 @@
 }
 
 .notification-message {
-  color: #374151;
+  color: var(--text-primary);
   font-size: 1rem;
   margin: 0 0 1rem 0;
   line-height: 1.5;
 }
 
 .dispatch-details {
-  background: #f8fafc;
+  background: var(--bg-secondary);
   border-radius: 8px;
   padding: 1rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-primary);
 }
 
 .dispatch-details h4 {
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
@@ -154,11 +155,11 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .detail-item strong {
-  color: #1e293b;
+  color: var(--text-primary);
   font-weight: 600;
   min-width: 120px;
 }
@@ -175,25 +176,25 @@
 .description-section {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-primary);
 }
 
 .description-section strong {
-  color: #1e293b;
+  color: var(--text-primary);
   font-weight: 600;
   display: block;
   margin-bottom: 0.5rem;
 }
 
 .description-section p {
-  color: #374151;
+  color: var(--text-primary);
   font-size: 0.875rem;
   line-height: 1.5;
   margin: 0;
-  background: white;
+  background: var(--bg-primary);
   padding: 0.75rem;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-primary);
 }
 
 .notification-actions {
@@ -213,23 +214,23 @@
 }
 
 .mark-read-btn {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .mark-read-btn:hover {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .view-details-btn {
-  background: #3b82f6;
+  background: var(--accent-primary);
   color: white;
 }
 
 .view-details-btn:hover {
-  background: #2563eb;
+  background: var(--accent-secondary);
 }
 
 /* Responsive design */

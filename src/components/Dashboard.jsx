@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getDatabase, ref, onValue, off, update, get, push, set } from 'firebase/database'
-import { app } from '../firebase'
+import { app, iceServers } from '../firebase'
+import { useAuth } from '../providers/AuthProvider'
 import './Dashboard.css'
 
 function Dashboard({ onNavigateToReport }) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate()
+  const { user, claims, loading: authLoading } = useAuth()
+  const [currentPageImmediate, setCurrentPageImmediate] = useState(1);
+  const [currentPageHigh, setCurrentPageHigh] = useState(1);
+  const [currentPageModerate, setCurrentPageModerate] = useState(1);
+  const [currentPageLow, setCurrentPageLow] = useState(1);
   const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,7 +86,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -97,7 +104,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -115,7 +122,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -133,7 +140,7 @@ function Dashboard({ onNavigateToReport }) {
           case 'in-progress':
             return status === 'in progress';
           case 'resolved':
-            return status === 'resolved';
+            return status === 'resolved' || status === 'case resolved';
           default:
             return true;
         }
@@ -142,29 +149,40 @@ function Dashboard({ onNavigateToReport }) {
   
 
   // Pagination for severity-based reports
-  const totalImmediatePages = Math.max(1, Math.ceil(filteredImmediateSeverity.length / itemsPerPage));
-  const startImmediateIndex = (currentPage - 1) * itemsPerPage;
+  const toTimestamp = (value) => {
+    const ts = new Date(value).getTime();
+    return Number.isFinite(ts) ? ts : 0;
+  };
+
+  // Always sort newest-first within each severity before paginating
+  const immediateSorted = [...filteredImmediateSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+  const highSorted = [...filteredHighSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+  const moderateSorted = [...filteredModerateSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+  const lowSorted = [...filteredLowSeverity].sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+
+  const totalImmediatePages = Math.max(1, Math.ceil(immediateSorted.length / itemsPerPage));
+  const startImmediateIndex = (currentPageImmediate - 1) * itemsPerPage;
   const endImmediateIndex = startImmediateIndex + itemsPerPage;
-  const currentImmediateSubmissions = filteredImmediateSeverity.slice(startImmediateIndex, endImmediateIndex);
+  const currentImmediateSubmissions = immediateSorted.slice(startImmediateIndex, endImmediateIndex);
 
-  const totalHighPages = Math.max(1, Math.ceil(filteredHighSeverity.length / itemsPerPage));
-  const startHighIndex = (currentPage - 1) * itemsPerPage;
+  const totalHighPages = Math.max(1, Math.ceil(highSorted.length / itemsPerPage));
+  const startHighIndex = (currentPageHigh - 1) * itemsPerPage;
   const endHighIndex = startHighIndex + itemsPerPage;
-  const currentHighSubmissions = filteredHighSeverity.slice(startHighIndex, endHighIndex);
+  const currentHighSubmissions = highSorted.slice(startHighIndex, endHighIndex);
 
-  const totalModeratePages = Math.max(1, Math.ceil(filteredModerateSeverity.length / itemsPerPage));
-  const startModerateIndex = (currentPage - 1) * itemsPerPage;
+  const totalModeratePages = Math.max(1, Math.ceil(moderateSorted.length / itemsPerPage));
+  const startModerateIndex = (currentPageModerate - 1) * itemsPerPage;
   const endModerateIndex = startModerateIndex + itemsPerPage;
-  const currentModerateSubmissions = filteredModerateSeverity.slice(startModerateIndex, endModerateIndex);
+  const currentModerateSubmissions = moderateSorted.slice(startModerateIndex, endModerateIndex);
 
-  const totalLowPages = Math.max(1, Math.ceil(filteredLowSeverity.length / itemsPerPage));
-  const startLowIndex = (currentPage - 1) * itemsPerPage;
+  const totalLowPages = Math.max(1, Math.ceil(lowSorted.length / itemsPerPage));
+  const startLowIndex = (currentPageLow - 1) * itemsPerPage;
   const endLowIndex = startLowIndex + itemsPerPage;
-  const currentLowSubmissions = filteredLowSeverity.slice(startLowIndex, endLowIndex);
+  const currentLowSubmissions = lowSorted.slice(startLowIndex, endLowIndex);
 
   const getStatusColor = (status) => {
     const normalizedStatus = status.toLowerCase();
-    if (normalizedStatus === "resolved") {
+    if (normalizedStatus === "resolved" || normalizedStatus === "case resolved") {
       return "status-resolved";
     } else if (normalizedStatus === "in progress") {
       return "status-in-progress";
@@ -183,12 +201,18 @@ function Dashboard({ onNavigateToReport }) {
       case "received":
         return "Received";
       case "resolved":
-        return "Resolved";
+      case "case resolved":
+        return "Case Resolved";
       case "pending":
         return "Pending";
       default:
         return status;
     }
+  };
+
+  const isResolved = (status) => {
+    const s = (status || '').toLowerCase();
+    return s === 'resolved' || s === 'case resolved';
   };
 
   const formatDate = (dateString) => {
@@ -255,7 +279,7 @@ function Dashboard({ onNavigateToReport }) {
         
         // Calculate statistics
         const receivedCount = reportsArray.filter(report => 
-          report.status.toLowerCase() === 'received'
+          (report.status || '').toLowerCase() === 'received'
         ).length;
         
         const pendingCount = reportsArray.filter(report => 
@@ -264,12 +288,10 @@ function Dashboard({ onNavigateToReport }) {
         ).length;
         
         const inProgressCount = reportsArray.filter(report => 
-          report.status.toLowerCase() === 'in progress'
+          (report.status || '').toLowerCase() === 'in progress'
         ).length;
         
-        const resolvedCount = reportsArray.filter(report => 
-          report.status.toLowerCase() === 'resolved'
-        ).length;
+        const resolvedCount = reportsArray.filter(report => isResolved(report.status)).length;
         
         setStats({
           receivedReports: receivedCount,
@@ -386,7 +408,11 @@ function Dashboard({ onNavigateToReport }) {
 
   const handleFilterClick = (filterType) => {
     setActiveFilter(activeFilter === filterType ? null : filterType);
-    setCurrentPage(1); // Reset to first page when filter changes
+    // Reset per-section pages when filter changes
+    setCurrentPageImmediate(1);
+    setCurrentPageHigh(1);
+    setCurrentPageModerate(1);
+    setCurrentPageLow(1);
   };
 
   const handleUpdateStatus = (report) => {
@@ -705,14 +731,25 @@ function Dashboard({ onNavigateToReport }) {
       
       // Create peer connection for internet calling
       const configuration = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
+        iceServers,
+        iceTransportPolicy: 'all',
+        bundlePolicy: 'balanced'
       };
       
       peerConnectionRef.current = new RTCPeerConnection(configuration);
+
+      peerConnectionRef.current.oniceconnectionstatechange = () => {
+        const state = peerConnectionRef.current?.iceConnectionState
+        console.log('ICE state:', state)
+        if (state === 'failed' || state === 'disconnected') {
+          try {
+            peerConnectionRef.current?.restartIce?.()
+            console.log('Attempted ICE restart')
+          } catch (e) {
+            console.log('ICE restart unsupported', e)
+          }
+        }
+      }
       
       
       // Add local audio stream to peer connection
@@ -949,38 +986,51 @@ function Dashboard({ onNavigateToReport }) {
     }
   };
 
+  // Debug authentication info
+  useEffect(() => {
+    if (user && claims) {
+      console.log('Dashboard: User authenticated:', {
+        uid: user.uid,
+        email: user.email,
+        role: claims.role,
+        accountType: claims.accountType,
+        accountData: claims.accountData
+      })
+    }
+  }, [user, claims])
+
   return (
-    <div className="page-content">
-      <div className="dashboard-header">
-        <h1>E-Responde Dashboard</h1>
-      </div>
-      
+    <div className="min-h-full bg-gray-50 p-4 lg:p-6">
       {/* New Report Notification */}
       {newReportNotification && (
-        <div className="new-report-notification">
-          <div className="notification-content">
-            <div className="notification-icon">!</div>
-            <div className="notification-text">
-              <h3>NEW CRIME REPORT</h3>
-              <div className="notification-details">
-                <div className="crime-type">
-                  <span className="label">Crime Type:</span>
-                  <span className="value">{newReportNotification.type}</span>
-                </div>
-                <div className="reporter-name">
-                  <span className="label">Reported by:</span>
-                  <span className="value">{newReportNotification.reporterName}</span>
-                </div>
-                <div className="severity">
-                  <span className="label">Severity:</span>
-                  <span className={`severity-value ${newReportNotification.severity?.toLowerCase()}`}>
-                    {newReportNotification.severity?.toUpperCase() || 'UNKNOWN'}
-                  </span>
+        <div className="fixed top-4 right-4 bg-status-danger text-white p-4 rounded-xl shadow-lg z-50 max-w-md mx-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg font-bold">
+                !
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg mb-2">NEW CRIME REPORT</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Crime Type:</span>
+                    <span>{newReportNotification.type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Reported by:</span>
+                    <span>{newReportNotification.reporterName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Severity:</span>
+                    <span className="font-bold">
+                      {newReportNotification.severity?.toUpperCase() || 'UNKNOWN'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
             <button 
-              className="notification-close"
+              className="ml-4 text-white hover:text-gray-200 text-xl font-bold"
               onClick={() => setNewReportNotification(null)}
             >
               ×
@@ -989,123 +1039,150 @@ function Dashboard({ onNavigateToReport }) {
         </div>
       )}
 
-      <section className="dashboard-section">
-        <h2>Report Overview</h2>
-        <div className="dashboard-grid">
+      <section className="mb-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-black mb-2">Report Overview</h2>
+          <p className="text-gray-600">Current system statistics</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
-            className={`card filter-card ${activeFilter === 'pending' ? 'active' : ''}`}
+            className={`card cursor-pointer transition-all duration-200 ${
+              activeFilter === 'pending' ? 'ring-2 ring-black bg-gray-50' : ''
+            }`}
             onClick={() => handleFilterClick('pending')}
           >
-            <h3>Pending Reports</h3>
-            <p className="stat">{stats.pendingReports}</p>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Pending Reports</div>
+            <div className="text-3xl font-bold text-black">{stats.pendingReports}</div>
           </div>
           <div 
-            className={`card filter-card ${activeFilter === 'received' ? 'active' : ''}`}
+            className={`card cursor-pointer transition-all duration-200 ${
+              activeFilter === 'received' ? 'ring-2 ring-black bg-gray-50' : ''
+            }`}
             onClick={() => handleFilterClick('received')}
           >
-            <h3>Received Reports</h3>
-            <p className="stat">{stats.receivedReports}</p>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Received Reports</div>
+            <div className="text-3xl font-bold text-black">{stats.receivedReports}</div>
           </div>
           <div 
-            className={`card filter-card ${activeFilter === 'in-progress' ? 'active' : ''}`}
+            className={`card cursor-pointer transition-all duration-200 ${
+              activeFilter === 'in-progress' ? 'ring-2 ring-black bg-gray-50' : ''
+            }`}
             onClick={() => handleFilterClick('in-progress')}
           >
-            <h3>In Progress Reports</h3>
-            <p className="stat">{stats.inProgressReports}</p>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">In Progress Reports</div>
+            <div className="text-3xl font-bold text-black">{stats.inProgressReports}</div>
           </div>
           <div 
-            className={`card filter-card ${activeFilter === 'resolved' ? 'active' : ''}`}
+            className={`card cursor-pointer transition-all duration-200 ${
+              activeFilter === 'resolved' ? 'ring-2 ring-black bg-gray-50' : ''
+            }`}
             onClick={() => handleFilterClick('resolved')}
           >
-            <h3>Resolved Reports</h3>
-            <p className="stat">{stats.resolvedReports}</p>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Resolved Reports</div>
+            <div className="text-3xl font-bold text-black">{stats.resolvedReports}</div>
           </div>
         </div>
       </section>
 
       {/* Immediate Severity Reports Section */}
       {filteredImmediateSeverity.length > 0 && (
-        <section className="dashboard-section">
-          <div className="section-header">
-            <h2>Immediate Severity Reports</h2>
-            <span className="severity-badge immediate-severity">IMMEDIATE</span>
+        <section className="reports-section immediate-severity-section">
+          <div className="reports-section-header immediate-header">
+            <div>
+              <h2 className="reports-section-title">Immediate Severity Reports</h2>
+              <p className="reports-section-subtitle">High priority emergency cases</p>
+            </div>
+            <span className="priority-badge priority-high">IMMEDIATE</span>
           </div>
-          <div className="table-container">
-            <table className="submissions-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Location</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentImmediateSubmissions.length === 0 && !loading ? (
+          <div className="reports-table-container">
+            <div className="reports-table-wrapper">
+              <table className="reports-table">
+                <thead className="reports-table-header">
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
-                      No immediate severity reports found
-                    </td>
+                    <th className="table-header">Type</th>
+                    <th className="table-header">Description</th>
+                    <th className="table-header">Location</th>
+                    <th className="table-header">Date</th>
+                    <th className="table-header">Status</th>
+                    <th className="table-header">Actions</th>
                   </tr>
-                ) : (
-                  currentImmediateSubmissions.map((submission) => (
-                    <tr key={submission.id} className={submission.type.toLowerCase() === 'emergency sos' ? 'sos-row' : ''}>
-                      <td>{submission.type}</td>
-                      <td>{submission.description}</td>
-                      <td>{submission.location}</td>
-                      <td>{formatDate(submission.date)}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
-                          {formatStatus(submission.status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          <button 
-                            className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
-                          >
-                            View
-                          </button>
-                          <button 
-                            className="btn-update"
-                            onClick={() => handleUpdateStatus(submission)}
-                          >
-                            Update
-                          </button>
-                          <button 
-                            className="btn-call"
-                            onClick={() => handleCallClick(submission)}
-                            disabled={callLoading}
-                          >
-                            {callLoading ? 'Calling...' : 'Call'}
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="reports-table-body">
+                  {currentImmediateSubmissions.length === 0 && !loading ? (
+                    <tr>
+                      <td colSpan="6" className="table-empty-state">
+                        No immediate severity reports found
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    currentImmediateSubmissions.map((submission) => (
+                      <tr key={submission.id} className="report-row">
+                        <td className="table-cell table-cell-type">{submission.type}</td>
+                        <td className="table-cell table-cell-description">{submission.description}</td>
+                        <td className="table-cell table-cell-location">{submission.location}</td>
+                        <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>
+                        <td className="table-cell table-cell-status">
+                          <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
+                            {formatStatus(submission.status)}
+                          </span>
+                        </td>
+                        <td className="table-cell table-cell-actions">
+                          <div className="action-buttons">
+                            <button 
+                              className="action-btn action-btn-view" 
+                              onClick={() => navigate(`/report/${submission.id}`)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                              View
+                            </button>
+                            <button 
+                              className="action-btn action-btn-update"
+                              onClick={() => handleUpdateStatus(submission)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                              Update
+                            </button>
+                            <button 
+                              className="action-btn action-btn-call"
+                              onClick={() => handleCallClick(submission)}
+                              disabled={callLoading}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                              </svg>
+                              {callLoading ? 'Calling...' : 'Call'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           {filteredImmediateSeverity.length > itemsPerPage && (
-            <div className="pagination">
+            <div className="flex items-center justify-center gap-4 mt-6">
               <button 
-                className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPageImmediate === 1}
+                onClick={() => setCurrentPageImmediate(currentPageImmediate - 1)}
               >
                 Previous
               </button>
-              <span className="pagination-info">
-                Page {currentPage} of {totalImmediatePages}
+              <span className="text-sm text-gray-600 font-medium">
+                Page {currentPageImmediate} of {totalImmediatePages}
               </span>
               <button 
-                className="pagination-btn"
-                disabled={currentPage === totalImmediatePages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPageImmediate === totalImmediatePages}
+                onClick={() => setCurrentPageImmediate(currentPageImmediate + 1)}
               >
                 Next
               </button>
@@ -1116,87 +1193,103 @@ function Dashboard({ onNavigateToReport }) {
 
       {/* High Severity Reports Section */}
       {filteredHighSeverity.length > 0 && (
-        <section className="dashboard-section">
-          <div className="section-header">
-            <h2>High Severity Reports</h2>
-            <span className="severity-badge high-severity">HIGH</span>
+        <section className="reports-section high-severity-section">
+          <div className="reports-section-header high-header">
+            <div>
+              <h2 className="reports-section-title">High Severity Reports</h2>
+              <p className="reports-section-subtitle">High priority cases requiring attention</p>
+            </div>
+            <span className="priority-badge priority-high">HIGH</span>
           </div>
-          <div className="table-container">
-            <table className="submissions-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Location</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentHighSubmissions.length === 0 && !loading ? (
+          <div className="reports-table-container">
+            <div className="reports-table-wrapper">
+              <table className="reports-table">
+                <thead className="reports-table-header">
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
-                      No high severity reports found
-                    </td>
+                    <th className="table-header">Type</th>
+                    <th className="table-header">Description</th>
+                    <th className="table-header">Location</th>
+                    <th className="table-header">Date</th>
+                    <th className="table-header">Status</th>
+                    <th className="table-header">Actions</th>
                   </tr>
-                ) : (
-                  currentHighSubmissions.map((submission) => (
-                    <tr key={submission.id} className={submission.type.toLowerCase() === 'emergency sos' ? 'sos-row' : ''}>
-                      <td>{submission.type}</td>
-                      <td>{submission.description}</td>
-                      <td>{submission.location}</td>
-                      <td>{formatDate(submission.date)}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
-                          {formatStatus(submission.status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          <button 
-                            className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
-                          >
-                            View
-                          </button>
-                          <button 
-                            className="btn-update"
-                            onClick={() => handleUpdateStatus(submission)}
-                          >
-                            Update
-                          </button>
-                          <button 
-                            className="btn-call"
-                            onClick={() => handleCallClick(submission)}
-                            disabled={callLoading}
-                          >
-                            {callLoading ? 'Calling...' : 'Call'}
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="reports-table-body">
+                  {currentHighSubmissions.length === 0 && !loading ? (
+                    <tr>
+                      <td colSpan="6" className="table-empty-state">
+                        No high severity reports found
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    currentHighSubmissions.map((submission) => (
+                      <tr key={submission.id} className="report-row">
+                        <td className="table-cell table-cell-type">{submission.type}</td>
+                        <td className="table-cell table-cell-description">{submission.description}</td>
+                        <td className="table-cell table-cell-location">{submission.location}</td>
+                        <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>
+                        <td className="table-cell table-cell-status">
+                          <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
+                            {formatStatus(submission.status)}
+                          </span>
+                        </td>
+                        <td className="table-cell table-cell-actions">
+                          <div className="action-buttons">
+                            <button 
+                              className="action-btn action-btn-view" 
+                              onClick={() => navigate(`/report/${submission.id}`)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                              View
+                            </button>
+                            <button 
+                              className="action-btn action-btn-update"
+                              onClick={() => handleUpdateStatus(submission)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                              Update
+                            </button>
+                            <button 
+                              className="action-btn action-btn-call"
+                              onClick={() => handleCallClick(submission)}
+                              disabled={callLoading}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                              </svg>
+                              {callLoading ? 'Calling...' : 'Call'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           {filteredHighSeverity.length > itemsPerPage && (
-            <div className="pagination">
+            <div className="flex items-center justify-center gap-4 mt-6">
               <button 
-                className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPageHigh === 1}
+                onClick={() => setCurrentPageHigh(currentPageHigh - 1)}
               >
                 Previous
               </button>
-              <span className="pagination-info">
-                Page {currentPage} of {totalHighPages}
+              <span className="text-sm text-gray-600 font-medium">
+                Page {currentPageHigh} of {totalHighPages}
               </span>
               <button 
-                className="pagination-btn"
-                disabled={currentPage === totalHighPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPageHigh === totalHighPages}
+                onClick={() => setCurrentPageHigh(currentPageHigh + 1)}
               >
                 Next
               </button>
@@ -1207,61 +1300,76 @@ function Dashboard({ onNavigateToReport }) {
 
       {/* Moderate Severity Reports Section */}
       {filteredModerateSeverity.length > 0 && (
-        <section className="dashboard-section">
-          <div className="section-header">
-            <h2>Moderate Severity Reports</h2>
-            <span className="severity-badge moderate-severity">MODERATE</span>
+        <section className="reports-section moderate-severity-section">
+          <div className="reports-section-header moderate-header">
+            <div>
+              <h2 className="reports-section-title">Moderate Severity Reports</h2>
+              <p className="reports-section-subtitle">Important cases requiring attention</p>
+            </div>
+            <span className="priority-badge priority-moderate">MODERATE</span>
           </div>
-          <div className="table-container">
-            <table className="submissions-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Location</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="reports-table-container">
+            <div className="reports-table-wrapper">
+              <table className="reports-table">
+                <thead className="reports-table-header">
+                  <tr>
+                    <th className="table-header">Type</th>
+                    <th className="table-header">Description</th>
+                    <th className="table-header">Location</th>
+                    <th className="table-header">Date</th>
+                    <th className="table-header">Status</th>
+                    <th className="table-header">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="reports-table-body">
                 {currentModerateSubmissions.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    <td colSpan="6" className="table-empty-state">
                       No moderate severity reports found
                     </td>
                   </tr>
                 ) : (
                   currentModerateSubmissions.map((submission) => (
-                    <tr key={submission.id} className={submission.type.toLowerCase() === 'emergency sos' ? 'sos-row' : ''}>
-                      <td>{submission.type}</td>
-                      <td>{submission.description}</td>
-                      <td>{submission.location}</td>
-                      <td>{formatDate(submission.date)}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
+                    <tr key={submission.id} className={`report-row ${submission.type.toLowerCase() === 'emergency sos' ? 'sos-row' : ''}`}>
+                      <td className="table-cell table-cell-type">{submission.type}</td>
+                      <td className="table-cell table-cell-description">{submission.description}</td>
+                      <td className="table-cell table-cell-location">{submission.location}</td>
+                      <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>
+                      <td className="table-cell table-cell-status">
+                        <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
                           {formatStatus(submission.status)}
                         </span>
                       </td>
-                      <td>
+                      <td className="table-cell table-cell-actions">
                         <div className="action-buttons">
                           <button 
-                            className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
+                            className="action-btn action-btn-view" 
+                            onClick={() => navigate(`/report/${submission.id}`)}
                           >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
                             View
                           </button>
                           <button 
-                            className="btn-update"
+                            className="action-btn action-btn-update"
                             onClick={() => handleUpdateStatus(submission)}
                           >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
                             Update
                           </button>
                           <button 
-                            className="btn-call"
+                            className="action-btn action-btn-call"
                             onClick={() => handleCallClick(submission)}
                             disabled={callLoading}
                           >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                            </svg>
                             {callLoading ? 'Calling...' : 'Call'}
                           </button>
                         </div>
@@ -1276,83 +1384,99 @@ function Dashboard({ onNavigateToReport }) {
             <div className="pagination">
               <button 
                 className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPageModerate === 1}
+                onClick={() => setCurrentPageModerate(currentPageModerate - 1)}
               >
                 Previous
               </button>
               <span className="pagination-info">
-                Page {currentPage} of {totalModeratePages}
+                Page {currentPageModerate} of {totalModeratePages}
               </span>
               <button 
                 className="pagination-btn"
-                disabled={currentPage === totalModeratePages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPageModerate === totalModeratePages}
+                onClick={() => setCurrentPageModerate(currentPageModerate + 1)}
               >
                 Next
               </button>
             </div>
           )}
+          </div>
         </section>
       )}
 
       {/* Low Severity Reports Section */}
       {filteredLowSeverity.length > 0 && (
-        <section className="dashboard-section">
-          <div className="section-header">
-            <h2>Low Severity Reports</h2>
-            <span className="severity-badge low-severity">LOW</span>
+        <section className="reports-section low-severity-section">
+          <div className="reports-section-header low-header">
+            <div>
+              <h2 className="reports-section-title">Low Severity Reports</h2>
+              <p className="reports-section-subtitle">Standard cases for routine handling</p>
+            </div>
+            <span className="priority-badge priority-low">LOW</span>
           </div>
-          <div className="table-container">
-            <table className="submissions-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Location</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="reports-table-container">
+            <div className="reports-table-wrapper">
+              <table className="reports-table">
+                <thead className="reports-table-header">
+                  <tr>
+                    <th className="table-header">Type</th>
+                    <th className="table-header">Description</th>
+                    <th className="table-header">Location</th>
+                    <th className="table-header">Date</th>
+                    <th className="table-header">Status</th>
+                    <th className="table-header">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="reports-table-body">
                 {currentLowSubmissions.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    <td colSpan="6" className="table-empty-state">
                       No low severity reports found
                     </td>
                   </tr>
                 ) : (
                   currentLowSubmissions.map((submission) => (
-                    <tr key={submission.id} className={submission.type.toLowerCase() === 'emergency sos' ? 'sos-row' : ''}>
-                      <td>{submission.type}</td>
-                      <td>{submission.description}</td>
-                      <td>{submission.location}</td>
-                      <td>{formatDate(submission.date)}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusColor(submission.status)}`}>
+                    <tr key={submission.id} className={`report-row ${submission.type.toLowerCase() === 'emergency sos' ? 'sos-row' : ''}`}>
+                      <td className="table-cell table-cell-type">{submission.type}</td>
+                      <td className="table-cell table-cell-description">{submission.description}</td>
+                      <td className="table-cell table-cell-location">{submission.location}</td>
+                      <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>
+                      <td className="table-cell table-cell-status">
+                        <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
                           {formatStatus(submission.status)}
                         </span>
                       </td>
-                      <td>
+                      <td className="table-cell table-cell-actions">
                         <div className="action-buttons">
                           <button 
-                            className="btn-view" 
-                            onClick={() => onNavigateToReport(submission.id)}
+                            className="action-btn action-btn-view" 
+                            onClick={() => navigate(`/report/${submission.id}`)}
                           >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
                             View
                           </button>
                           <button 
-                            className="btn-update"
+                            className="action-btn action-btn-update"
                             onClick={() => handleUpdateStatus(submission)}
                           >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
                             Update
                           </button>
                           <button 
-                            className="btn-call"
+                            className="action-btn action-btn-call"
                             onClick={() => handleCallClick(submission)}
                             disabled={callLoading}
                           >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                            </svg>
                             {callLoading ? 'Calling...' : 'Call'}
                           </button>
                         </div>
@@ -1367,61 +1491,76 @@ function Dashboard({ onNavigateToReport }) {
             <div className="pagination">
               <button 
                 className="pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPageLow === 1}
+                onClick={() => setCurrentPageLow(currentPageLow - 1)}
               >
                 Previous
               </button>
               <span className="pagination-info">
-                Page {currentPage} of {totalLowPages}
+                Page {currentPageLow} of {totalLowPages}
               </span>
               <button 
                 className="pagination-btn"
-                disabled={currentPage === totalLowPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPageLow === totalLowPages}
+                onClick={() => setCurrentPageLow(currentPageLow + 1)}
               >
                 Next
               </button>
             </div>
           )}
+          </div>
         </section>
       )}
 
       {/* Update Status Modal */}
       {showUpdateModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Update Report Status</h3>
-            <p><strong>Report ID:</strong> {selectedReport?.reportId}</p>
-            <p><strong>Current Status:</strong> {selectedReport?.status}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-lg">
+            <h3 className="text-xl font-bold text-black mb-4">Update Report Status</h3>
+            <div className="space-y-3 mb-6">
+              <p><strong className="text-gray-700">Report ID:</strong> {selectedReport?.reportId}</p>
+              <p><strong className="text-gray-700">Current Status:</strong> {selectedReport?.status}</p>
+            </div>
             
-            <div className="status-options">
+            <div className="space-y-3 mb-6">
               <button 
-                className={`status-btn ${selectedReport?.status === 'Received' ? 'active' : ''}`}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                  selectedReport?.status === 'Received' 
+                    ? 'bg-black text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
                 onClick={() => updateReportStatus('Received')}
                 disabled={updating}
               >
                 Received
               </button>
               <button 
-                className={`status-btn ${selectedReport?.status === 'In Progress' ? 'active' : ''}`}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                  selectedReport?.status === 'In Progress' 
+                    ? 'bg-black text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
                 onClick={() => updateReportStatus('In Progress')}
                 disabled={updating}
               >
                 In Progress
               </button>
               <button 
-                className={`status-btn ${selectedReport?.status === 'Resolved' ? 'active' : ''}`}
-                onClick={() => updateReportStatus('Resolved')}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                  ['Resolved','Case Resolved'].includes(selectedReport?.status) 
+                    ? 'bg-black text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => updateReportStatus('Case Resolved')}
                 disabled={updating}
               >
-                Resolved
+                Case Resolved
               </button>
             </div>
             
-            <div className="modal-actions">
+            <div className="flex gap-3">
               <button 
-                className="btn-cancel"
+                className="btn-secondary flex-1"
                 onClick={() => {
                   setShowUpdateModal(false);
                   setSelectedReport(null);
@@ -1432,85 +1571,121 @@ function Dashboard({ onNavigateToReport }) {
               </button>
             </div>
             
-            {updating && <p className="updating-text">Updating status...</p>}
+            {updating && (
+              <div className="mt-4 text-center text-gray-600">
+                <div className="inline-flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                  Updating status...
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* WebRTC Call Modal */}
       {showCallModal && (
-        <div className="modal-overlay">
-          <div className="modal-content call-modal">
-            <div className="call-header">
-              <h3>VoIP Call</h3>
-              <button className="close-btn" onClick={endCall}>×</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-lg">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-black">VoIP Call</h3>
+              <button 
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                onClick={endCall}
+              >
+                ×
+              </button>
             </div>
             
             {callError && (
-              <div className="call-error">
-                <p>{callError}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-700 text-sm">{callError}</p>
               </div>
             )}
             
             {callState.targetUser && (
-              <div className="call-info">
-                <div className="call-target">
-                  <h4>Internet Call to Mobile App</h4>
-                  <p className="target-name">{callState.targetUser.name}</p>
-                  <p className="target-status">
-                    {callState.targetUser.isOnline ? 
-                      <span className="online-status">Online</span> : 
-                      <span className="offline-status">Offline</span>
-                    }
-                  </p>
-                  <p className="target-method">Calling via E-Responde Mobile App</p>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-600">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
                 </div>
+                <h4 className="text-lg font-semibold text-black mb-2">Internet Call to Mobile App</h4>
+                <p className="text-gray-900 font-medium mb-1">{callState.targetUser.name}</p>
+                <p className="text-sm text-gray-600 mb-2">
+                  {callState.targetUser.isOnline ? 
+                    <span className="inline-flex items-center gap-1 text-green-600">
+                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                      Online
+                    </span> : 
+                    <span className="inline-flex items-center gap-1 text-gray-500">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      Offline
+                    </span>
+                  }
+                </p>
+                <p className="text-xs text-gray-500">Calling via E-Responde Mobile App</p>
               </div>
             )}
             
-            <div className="call-container">
-              <div className="call-wrapper">
-                {callState.isCalling && !callState.isInCall && (
-                  <div className="calling-status">
-                    <div className="calling-spinner"></div>
-                    <p>Connecting...</p>
+            <div className="text-center mb-6">
+              {callState.isCalling && !callState.isInCall && (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                  <p className="text-gray-600">Connecting...</p>
+                </div>
+              )}
+              
+              {callState.isInCall && (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-600">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
                   </div>
-                )}
-                
-                {callState.isInCall && (
-                  <div className="call-status">
-                    <div className="call-icon">CALL</div>
-                    <p>Call Connected</p>
-                    <div className="call-controls">
-                      <button 
-                        className={`call-btn mute-btn ${isMuted ? 'muted' : ''}`} 
-                        onClick={toggleMute}
-                      >
-                        {isMuted ? 'Unmute' : 'Mute'}
-                      </button>
-                      <button className="call-btn end-call" onClick={endCall}>
-                        End Call
-                      </button>
-                    </div>
+                  <p className="text-gray-900 font-medium">Call Connected</p>
+                  <div className="flex gap-3">
+                    <button 
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        isMuted 
+                          ? 'bg-gray-200 text-gray-700' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                      onClick={toggleMute}
+                    >
+                      {isMuted ? 'Unmute' : 'Mute'}
+                    </button>
+                    <button 
+                      className="bg-status-danger text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-all duration-200"
+                      onClick={endCall}
+                    >
+                      End Call
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             
-            <div className="call-actions">
+            <div className="flex gap-3">
               {!callState.isInCall && !callState.isCalling && (
-                <button className="call-btn start-call" onClick={async () => {
-                  // Get admin data for the call
-                  const db = getDatabase(app);
-                  const adminRef = ref(db, 'admin_dashboard_account');
-                  const adminSnapshot = await get(adminRef);
-                  const adminData = adminSnapshot.exists() ? adminSnapshot.val() : null;
-                  await initializeInternetCall(callState.targetUser, { id: callState.callId, type: 'Emergency' }, adminData);
-                }}>
+                <button 
+                  className="btn-primary flex-1"
+                  onClick={async () => {
+                    const db = getDatabase(app);
+                    const adminRef = ref(db, 'admin_dashboard_account');
+                    const adminSnapshot = await get(adminRef);
+                    const adminData = adminSnapshot.exists() ? adminSnapshot.val() : null;
+                    await initializeInternetCall(callState.targetUser, { id: callState.callId, type: 'Emergency' }, adminData);
+                  }}
+                >
                   Start Internet Call
                 </button>
               )}
-              <button className="call-btn cancel-call" onClick={endCall}>
+              <button 
+                className="btn-secondary flex-1"
+                onClick={endCall}
+              >
                 Cancel
               </button>
             </div>

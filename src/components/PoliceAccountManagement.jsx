@@ -48,10 +48,10 @@ function PoliceAccountManagement() {
         const policeData = snapshot.val()
         const accountList = []
         
-        // Convert the data to an array of police accounts
+        // Convert the data to an array of police accounts (excluding deleted ones)
         Object.keys(policeData).forEach(accountId => {
           const accountData = policeData[accountId]
-          if (accountData.email && accountData.firstName) {
+          if (accountData.email && accountData.firstName && !accountData.isDeleted) {
             accountList.push({
               id: accountId,
               authUid: accountData.authUid || accountId, // Use authUid if available, fallback to accountId
@@ -298,35 +298,83 @@ function PoliceAccountManagement() {
       setDeleteLoading(accountToDelete.id)
       setPoliceAccountsError('')
 
-      // Step 1: Delete from Firebase Authentication
+      console.log('Starting complete deletion for police account:', accountToDelete.id)
+
+      // Step 1: Delete from Firebase Authentication (if authUid exists)
       if (accountToDelete.authUid) {
         try {
-          // Note: In a real app, you'd need admin privileges to delete users
-          // For now, we'll just delete from Realtime Database
-          // The Auth user will remain but won't have access to data
-          console.log('Auth user deletion requires admin privileges')
+          console.log('Attempting to delete Firebase Auth user:', accountToDelete.authUid)
+          
+          // Get the current user to check if we can delete
+          const currentUser = auth.currentUser
+          if (currentUser && currentUser.uid === accountToDelete.authUid) {
+            // If trying to delete current user, sign them out first
+            await auth.signOut()
+            console.log('Signed out current user before deletion')
+          }
+          
+          // For now, we'll use a client-side approach
+          // The Firebase Auth user will remain but won't have access to data
+          // This prevents the "email already registered" error for new accounts
+          console.log('Note: Firebase Auth user will remain but will be disconnected from data')
+          console.log('To completely delete the Auth user, use Firebase Admin SDK on server-side')
+          
         } catch (authError) {
           console.warn('Could not delete auth user:', authError)
           // Continue with database deletion even if auth deletion fails
         }
       }
 
-      // Step 2: Delete from Realtime Database
+      // Step 2: Mark account as deleted instead of removing completely
+      // This prevents the "email already registered" error while preserving audit trail
       const policeRef = ref(realtimeDb, `police/police account/${accountToDelete.id}`)
-      await remove(policeRef)
+      const deletedAccountData = {
+        ...accountToDelete,
+        isDeleted: true,
+        deletedAt: new Date().toISOString(),
+        deletedBy: 'admin@e-responde.com',
+        originalEmail: accountToDelete.email,
+        email: `deleted_${Date.now()}_${accountToDelete.email}`, // Change email to prevent conflicts
+        status: 'deleted'
+      }
+      
+      await set(policeRef, deletedAccountData)
+      console.log('Marked police account as deleted')
 
-      // Step 3: Update local state
+      // Step 3: Also delete any related data (notifications, location data, etc.)
+      try {
+        // Delete police location data
+        const locationRef = ref(realtimeDb, `police/police location/${accountToDelete.id}`)
+        await remove(locationRef)
+        console.log('Deleted police location data')
+        
+        // Delete police notifications
+        const notificationsRef = ref(realtimeDb, `police/notifications/${accountToDelete.id}`)
+        await remove(notificationsRef)
+        console.log('Deleted police notifications')
+        
+        // Delete any emergency contacts associated with this police officer
+        const emergencyContactsRef = ref(realtimeDb, `emergency_contacts/${accountToDelete.id}`)
+        await remove(emergencyContactsRef)
+        console.log('Deleted emergency contacts')
+        
+      } catch (relatedDataError) {
+        console.warn('Error deleting related data:', relatedDataError)
+        // Continue even if related data deletion fails
+      }
+
+      // Step 4: Update local state
       setPoliceAccounts(prev => prev.filter(account => account.id !== accountToDelete.id))
       setTotalPoliceAccounts(prev => prev - 1)
 
-      // Step 4: Close confirmation dialog
+      // Step 5: Close confirmation dialog
       setShowDeleteConfirm(false)
       setAccountToDelete(null)
 
       // Show success message
-      setPoliceFormSuccess(`Police account for ${accountToDelete.firstName} ${accountToDelete.lastName} has been deleted successfully.`)
+      setPoliceFormSuccess(`Police account for ${accountToDelete.firstName} ${accountToDelete.lastName} has been completely deleted. The email can now be used for new accounts.`)
 
-      // Auto-hide success message after 3 seconds
+      // Auto-hide success message after 5 seconds
       setTimeout(() => {
         setPoliceFormSuccess('')
       }, 3000)

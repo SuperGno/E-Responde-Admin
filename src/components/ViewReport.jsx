@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { getDatabase, ref, get, set, push } from 'firebase/database'
 import { ref as storageRef, getDownloadURL } from 'firebase/storage'
 import { app, storage } from '../firebase'
@@ -12,6 +15,16 @@ function ViewReport({ reportId, onBackToDashboard }) {
   const [policeRecommendations, setPoliceRecommendations] = useState(null)
   const [dispatching, setDispatching] = useState(false)
   const [dispatchSuccess, setDispatchSuccess] = useState(null)
+  const [lightboxUrl, setLightboxUrl] = useState(null)
+
+  const redIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
+    shadowSize: [41, 41]
+  })
 
   // Calculate distance between two coordinates using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -207,10 +220,13 @@ function ViewReport({ reportId, onBackToDashboard }) {
 
         console.log('Police with distance:', policeWithDistance)
 
-        // Get top 3 nearest police officers
-        const nearestPolice = policeWithDistance.slice(0, 3)
+        // Filter out already dispatched officers and get top 3 nearest available police officers
+        const availablePolice = policeWithDistance.filter(police => 
+          police.status !== 'Dispatched' && police.status !== 'Busy'
+        )
+        const nearestPolice = availablePolice.slice(0, 3)
         
-        console.log('Nearest police:', nearestPolice)
+        console.log('Available police:', nearestPolice)
         setPoliceRecommendations(nearestPolice)
       } else {
         console.log('No police data found in database')
@@ -442,6 +458,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
           <img 
             src={imageUrl} 
             alt={`Evidence photo ${index + 1}`}
+            onClick={() => setLightboxUrl(imageUrl)}
             onError={(e) => {
               console.error('Converted image load error:', e.target.src);
               e.target.style.display = 'none';
@@ -477,7 +494,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
           <small>File: {media.split('/').pop()}</small>
           <div className="file-note">
             <small>Mobile: {error || 'This image was captured on a mobile device and is not accessible from the web interface.'}</small>
-            <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280' }}>
+            <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
               <strong>Note:</strong> The mobile app captured this image but didn't upload it to cloud storage. 
               To view the image, check the mobile device or contact the reporter.
             </div>
@@ -500,6 +517,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
           <img 
             src={media} 
             alt={`Evidence photo ${index + 1}`}
+            onClick={() => setLightboxUrl(media)}
             onError={(e) => {
               console.error('Base64 image load error:', e.target.src.substring(0, 50) + '...');
               e.target.style.display = 'none';
@@ -529,6 +547,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
           <img 
             src={media} 
             alt={`Evidence photo ${index + 1}`}
+            onClick={() => setLightboxUrl(media)}
             onError={(e) => {
               console.error('URL image load error:', e.target.src);
               e.target.style.display = 'none';
@@ -590,7 +609,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
       <div className="page-content">
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <h2>Error</h2>
-          <p style={{ color: 'red' }}>{error}</p>
+          <p style={{ color: 'var(--error)' }}>{error}</p>
         </div>
       </div>
     )
@@ -607,6 +626,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
   }
 
   return (
+    <>
     <div className="page-content">
       <div className="report-header">
         <h1>View Report</h1>
@@ -676,14 +696,25 @@ function ViewReport({ reportId, onBackToDashboard }) {
             <div className="map-container">
               {reportData.coordinates.latitude && reportData.coordinates.longitude ? (
                 <div className="map-content">
-                  <iframe
-                    width="100%"
-                    height="300"
-                    style={{ border: 0, borderRadius: '8px' }}
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${reportData.coordinates.longitude-0.01},${reportData.coordinates.latitude-0.01},${reportData.coordinates.longitude+0.01},${reportData.coordinates.latitude+0.01}&layer=mapnik&marker=${reportData.coordinates.latitude},${reportData.coordinates.longitude}`}
-                    allowFullScreen
-                    title="Report Location Map"
-                  ></iframe>
+                  <div style={{ height: 300, width: '100%' }}>
+                    <MapContainer
+                      center={[parseFloat(reportData.coordinates.latitude), parseFloat(reportData.coordinates.longitude)]}
+                      zoom={17}
+                      style={{ height: '100%', width: '100%', borderRadius: '8px' }}
+                      scrollWheelZoom={false}
+                    >
+                      <TileLayer
+                        attribution='&copy; OpenStreetMap contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <Marker
+                        position={[parseFloat(reportData.coordinates.latitude), parseFloat(reportData.coordinates.longitude)]}
+                        icon={redIcon}
+                      >
+                        <Popup>{reportData.location}</Popup>
+                      </Marker>
+                    </MapContainer>
+                  </div>
                   <div className="map-info">
                     <p><strong>Coordinates:</strong> {reportData.coordinates.latitude}, {reportData.coordinates.longitude}</p>
                     <p><strong>Address:</strong> {reportData.location}</p>
@@ -743,7 +774,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
           {/* Action buttons removed as requested */}
           {error && (
             <div className="report-section" style={{ marginTop: '1rem', borderLeft: '4px solid #ef4444' }}>
-              <p style={{ color: '#b91c1c', margin: 0 }}>Error: {error}</p>
+              <p style={{ color: 'var(--error)', margin: 0 }}>Error: {error}</p>
             </div>
           )}
           {dispatchResult && (
@@ -822,6 +853,30 @@ function ViewReport({ reportId, onBackToDashboard }) {
         </div>
       </div>
     </div>
+    {/* Lightbox for evidence photos */}
+    {lightboxUrl && (
+      <div 
+        onClick={() => setLightboxUrl(null)}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}
+      >
+        <img 
+          src={lightboxUrl} 
+          alt="Evidence"
+          style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <button 
+          onClick={() => setLightboxUrl(null)}
+          style={{ position: 'fixed', top: 16, right: 16, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)', borderRadius: 6, padding: '0.5rem 0.75rem', cursor: 'pointer' }}
+        >
+          Close
+        </button>
+      </div>
+    )}
+    </>
   )
 }
 
