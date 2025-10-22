@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getDatabase, ref, onValue, off, update, get, push, set } from 'firebase/database'
 import { app, iceServers } from '../firebase'
 import { useAuth } from '../providers/AuthProvider'
+import StatusTag from './StatusTag'
 import './Dashboard.css'
 
 function Dashboard({ onNavigateToReport }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user, claims, loading: authLoading } = useAuth()
   const [currentPageImmediate, setCurrentPageImmediate] = useState(1);
   const [currentPageHigh, setCurrentPageHigh] = useState(1);
@@ -15,6 +17,7 @@ function Dashboard({ onNavigateToReport }) {
   const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [highlightedReportId, setHighlightedReportId] = useState(null);
   const [stats, setStats] = useState({
     receivedReports: 0,
     pendingReports: 0,
@@ -221,6 +224,12 @@ function Dashboard({ onNavigateToReport }) {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const truncateDescription = (description, maxLength = 100) => {
+    if (!description) return 'No description'
+    if (description.length <= maxLength) return description
+    return description.substring(0, maxLength) + '...'
   };
 
   // Set up real-time listener for crime reports and statistics
@@ -1041,8 +1050,13 @@ function Dashboard({ onNavigateToReport }) {
 
       <section className="mb-8">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-black mb-2">Report Overview</h2>
-          <p className="text-gray-600">Current system statistics</p>
+          <h2 className="text-2xl font-bold text-black mb-2" style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: '800', 
+            color: '#1e293b', 
+            letterSpacing: '-0.025em',
+            textTransform: 'uppercase'
+          }}>Report Overview</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
@@ -1051,8 +1065,18 @@ function Dashboard({ onNavigateToReport }) {
             }`}
             onClick={() => handleFilterClick('pending')}
           >
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Pending Reports</div>
-            <div className="text-3xl font-bold text-black">{stats.pendingReports}</div>
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{stats.pendingReports}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Pending Reports</div>
           </div>
           <div 
             className={`card cursor-pointer transition-all duration-200 ${
@@ -1060,8 +1084,18 @@ function Dashboard({ onNavigateToReport }) {
             }`}
             onClick={() => handleFilterClick('received')}
           >
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Received Reports</div>
-            <div className="text-3xl font-bold text-black">{stats.receivedReports}</div>
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{stats.receivedReports}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Received Reports</div>
           </div>
           <div 
             className={`card cursor-pointer transition-all duration-200 ${
@@ -1069,8 +1103,18 @@ function Dashboard({ onNavigateToReport }) {
             }`}
             onClick={() => handleFilterClick('in-progress')}
           >
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">In Progress Reports</div>
-            <div className="text-3xl font-bold text-black">{stats.inProgressReports}</div>
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{stats.inProgressReports}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>In Progress Reports</div>
           </div>
           <div 
             className={`card cursor-pointer transition-all duration-200 ${
@@ -1078,8 +1122,18 @@ function Dashboard({ onNavigateToReport }) {
             }`}
             onClick={() => handleFilterClick('resolved')}
           >
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Resolved Reports</div>
-            <div className="text-3xl font-bold text-black">{stats.resolvedReports}</div>
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{stats.resolvedReports}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Resolved Reports</div>
           </div>
         </div>
       </section>
@@ -1090,9 +1144,7 @@ function Dashboard({ onNavigateToReport }) {
           <div className="reports-section-header immediate-header">
             <div>
               <h2 className="reports-section-title">Immediate Severity Reports</h2>
-              <p className="reports-section-subtitle">High priority emergency cases</p>
             </div>
-            <span className="priority-badge priority-high">IMMEDIATE</span>
           </div>
           <div className="reports-table-container">
             <div className="reports-table-wrapper">
@@ -1118,13 +1170,11 @@ function Dashboard({ onNavigateToReport }) {
                     currentImmediateSubmissions.map((submission) => (
                       <tr key={submission.id} className="report-row">
                         <td className="table-cell table-cell-type">{submission.type}</td>
-                        <td className="table-cell table-cell-description">{submission.description}</td>
+                        <td className="table-cell table-cell-description">{truncateDescription(submission.description)}</td>
                         <td className="table-cell table-cell-location">{submission.location}</td>
                         <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>
                         <td className="table-cell table-cell-status">
-                          <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
-                            {formatStatus(submission.status)}
-                          </span>
+                          <StatusTag status={submission.status} />
                         </td>
                         <td className="table-cell table-cell-actions">
                           <div className="action-buttons">
@@ -1170,21 +1220,25 @@ function Dashboard({ onNavigateToReport }) {
           {filteredImmediateSeverity.length > itemsPerPage && (
             <div className="flex items-center justify-center gap-4 mt-6">
               <button 
-                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageImmediate === 1}
                 onClick={() => setCurrentPageImmediate(currentPageImmediate - 1)}
               >
-                Previous
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15,18 9,12 15,6"></polyline>
+                </svg>
               </button>
               <span className="text-sm text-gray-600 font-medium">
                 Page {currentPageImmediate} of {totalImmediatePages}
               </span>
               <button 
-                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageImmediate === totalImmediatePages}
                 onClick={() => setCurrentPageImmediate(currentPageImmediate + 1)}
               >
-                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9,18 15,12 9,6"></polyline>
+                </svg>
               </button>
             </div>
           )}
@@ -1197,9 +1251,7 @@ function Dashboard({ onNavigateToReport }) {
           <div className="reports-section-header high-header">
             <div>
               <h2 className="reports-section-title">High Severity Reports</h2>
-              <p className="reports-section-subtitle">High priority cases requiring attention</p>
             </div>
-            <span className="priority-badge priority-high">HIGH</span>
           </div>
           <div className="reports-table-container">
             <div className="reports-table-wrapper">
@@ -1225,13 +1277,11 @@ function Dashboard({ onNavigateToReport }) {
                     currentHighSubmissions.map((submission) => (
                       <tr key={submission.id} className="report-row">
                         <td className="table-cell table-cell-type">{submission.type}</td>
-                        <td className="table-cell table-cell-description">{submission.description}</td>
+                        <td className="table-cell table-cell-description">{truncateDescription(submission.description)}</td>
                         <td className="table-cell table-cell-location">{submission.location}</td>
                         <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>
                         <td className="table-cell table-cell-status">
-                          <span className={`status-badge status-${submission.status.toLowerCase().replace(' ', '-')}`}>
-                            {formatStatus(submission.status)}
-                          </span>
+                          <StatusTag status={submission.status} />
                         </td>
                         <td className="table-cell table-cell-actions">
                           <div className="action-buttons">
@@ -1277,21 +1327,25 @@ function Dashboard({ onNavigateToReport }) {
           {filteredHighSeverity.length > itemsPerPage && (
             <div className="flex items-center justify-center gap-4 mt-6">
               <button 
-                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageHigh === 1}
                 onClick={() => setCurrentPageHigh(currentPageHigh - 1)}
               >
-                Previous
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15,18 9,12 15,6"></polyline>
+                </svg>
               </button>
               <span className="text-sm text-gray-600 font-medium">
                 Page {currentPageHigh} of {totalHighPages}
               </span>
               <button 
-                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageHigh === totalHighPages}
                 onClick={() => setCurrentPageHigh(currentPageHigh + 1)}
               >
-                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9,18 15,12 9,6"></polyline>
+                </svg>
               </button>
             </div>
           )}
@@ -1304,9 +1358,7 @@ function Dashboard({ onNavigateToReport }) {
           <div className="reports-section-header moderate-header">
             <div>
               <h2 className="reports-section-title">Moderate Severity Reports</h2>
-              <p className="reports-section-subtitle">Important cases requiring attention</p>
             </div>
-            <span className="priority-badge priority-moderate">MODERATE</span>
           </div>
           <div className="reports-table-container">
             <div className="reports-table-wrapper">
@@ -1383,21 +1435,25 @@ function Dashboard({ onNavigateToReport }) {
           {filteredModerateSeverity.length > itemsPerPage && (
             <div className="pagination">
               <button 
-                className="pagination-btn"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageModerate === 1}
                 onClick={() => setCurrentPageModerate(currentPageModerate - 1)}
               >
-                Previous
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15,18 9,12 15,6"></polyline>
+                </svg>
               </button>
               <span className="pagination-info">
                 Page {currentPageModerate} of {totalModeratePages}
               </span>
               <button 
-                className="pagination-btn"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageModerate === totalModeratePages}
                 onClick={() => setCurrentPageModerate(currentPageModerate + 1)}
               >
-                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9,18 15,12 9,6"></polyline>
+                </svg>
               </button>
             </div>
           )}
@@ -1411,9 +1467,7 @@ function Dashboard({ onNavigateToReport }) {
           <div className="reports-section-header low-header">
             <div>
               <h2 className="reports-section-title">Low Severity Reports</h2>
-              <p className="reports-section-subtitle">Standard cases for routine handling</p>
             </div>
-            <span className="priority-badge priority-low">LOW</span>
           </div>
           <div className="reports-table-container">
             <div className="reports-table-wrapper">
@@ -1490,21 +1544,25 @@ function Dashboard({ onNavigateToReport }) {
           {filteredLowSeverity.length > itemsPerPage && (
             <div className="pagination">
               <button 
-                className="pagination-btn"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageLow === 1}
                 onClick={() => setCurrentPageLow(currentPageLow - 1)}
               >
-                Previous
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15,18 9,12 15,6"></polyline>
+                </svg>
               </button>
               <span className="pagination-info">
                 Page {currentPageLow} of {totalLowPages}
               </span>
               <button 
-                className="pagination-btn"
+                className="pagination-btn-black disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPageLow === totalLowPages}
                 onClick={() => setCurrentPageLow(currentPageLow + 1)}
               >
-                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9,18 15,12 9,6"></polyline>
+                </svg>
               </button>
             </div>
           )}

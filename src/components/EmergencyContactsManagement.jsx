@@ -10,25 +10,16 @@ function EmergencyContactsManagement() {
   const [contactStats, setContactStats] = useState({
     totalContacts: 0,
     activeContacts: 0,
-    verifiedContacts: 0,
     averageContactsPerUser: 0
   })
   const [selectedContact, setSelectedContact] = useState(null)
   const [showContactDetails, setShowContactDetails] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [filterUser, setFilterUser] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [newContact, setNewContact] = useState({
-    userId: '',
-    name: '',
-    phoneNumber: '',
-    relationship: '',
-    isPrimary: false,
-    isVerified: false,
-    notes: ''
-  })
+  const [userNames, setUserNames] = useState({}) // Store user names by userId
 
   useEffect(() => {
+    fetchUserNames()
     fetchEmergencyContacts()
     setupRealTimeListeners()
     
@@ -38,6 +29,30 @@ function EmergencyContactsManagement() {
       off(contactsRef, 'value')
     }
   }, [])
+
+  const fetchUserNames = async () => {
+    try {
+      const civilianRef = ref(realtimeDb, 'civilian/civilian account')
+      const snapshot = await get(civilianRef)
+      
+      if (snapshot.exists()) {
+        const civilianData = snapshot.val()
+        const namesMap = {}
+        
+        Object.keys(civilianData).forEach(userId => {
+          const userData = civilianData[userId]
+          if (userData.firstName) {
+            const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
+            namesMap[userId] = fullName || userData.firstName
+          }
+        })
+        
+        setUserNames(namesMap)
+      }
+    } catch (err) {
+      console.error('Error fetching user names:', err)
+    }
+  }
 
   const fetchEmergencyContacts = async () => {
     try {
@@ -115,9 +130,6 @@ function EmergencyContactsManagement() {
     const activeContacts = contactsList.filter(contact => 
       contact.isActive !== false
     ).length
-    const verifiedContacts = contactsList.filter(contact => 
-      contact.isVerified === true
-    ).length
     
     // Calculate average contacts per user
     const uniqueUsers = new Set(contactsList.map(contact => contact.userId))
@@ -128,54 +140,10 @@ function EmergencyContactsManagement() {
     setContactStats({
       totalContacts,
       activeContacts,
-      verifiedContacts,
       averageContactsPerUser
     })
   }
 
-  const handleCreateContact = async () => {
-    if (!newContact.userId || !newContact.name || !newContact.phoneNumber) {
-      alert('Please fill in all required fields')
-      return
-    }
-
-    try {
-      const contactData = {
-        name: newContact.name,
-        phoneNumber: newContact.phoneNumber,
-        relationship: newContact.relationship,
-        isPrimary: newContact.isPrimary,
-        isVerified: newContact.isVerified,
-        notes: newContact.notes,
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        isActive: true,
-        createdBy: 'admin@e-responde.com'
-      }
-
-      const contactRef = ref(realtimeDb, `emergency_contacts/${newContact.userId}`)
-      const newContactRef = push(contactRef)
-      await update(newContactRef, contactData)
-
-      // Reset form
-      setNewContact({
-        userId: '',
-        name: '',
-        phoneNumber: '',
-        relationship: '',
-        isPrimary: false,
-        isVerified: false,
-        notes: ''
-      })
-      
-      setShowCreateModal(false)
-      alert('Emergency contact created successfully!')
-      
-    } catch (err) {
-      console.error('Error creating emergency contact:', err)
-      alert('Failed to create emergency contact. Please try again.')
-    }
-  }
 
   const handleUpdateContact = async (contactId, userId, updates) => {
     try {
@@ -240,25 +208,21 @@ function EmergencyContactsManagement() {
     }
   }
 
-  const getStatusColor = (isActive, isVerified) => {
+  const getStatusColor = (isActive) => {
     if (!isActive) return '#6b7280'
-    if (isVerified) return '#10b981'
-    return '#f59e0b'
+    return '#10b981'
   }
 
-  const getStatusText = (isActive, isVerified) => {
+  const getStatusText = (isActive) => {
     if (!isActive) return 'Inactive'
-    if (isVerified) return 'Verified'
-    return 'Pending'
+    return 'Active'
   }
 
   const filteredContacts = emergencyContacts.filter(contact => {
     const userMatch = filterUser === 'all' || contact.userId === filterUser
     const statusMatch = filterStatus === 'all' || 
       (filterStatus === 'active' && contact.isActive) ||
-      (filterStatus === 'inactive' && !contact.isActive) ||
-      (filterStatus === 'verified' && contact.isVerified) ||
-      (filterStatus === 'pending' && contact.isActive && !contact.isVerified)
+      (filterStatus === 'inactive' && !contact.isActive)
     
     return userMatch && statusMatch
   })
@@ -278,54 +242,23 @@ function EmergencyContactsManagement() {
     <div className="emergency-contacts-management-container">
       <div className="contacts-header">
         <h1>Emergency Contacts Management</h1>
-        <p>Manage and monitor emergency contacts for all users</p>
-        
-        <div className="header-actions">
-          <button 
-            className="create-contact-btn"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Add Contact
-          </button>
-        </div>
       </div>
 
       {/* Contact Statistics */}
       <div className="contact-stats">
         <div className="stat-card">
-          <div className="stat-icon">👥</div>
-          <div className="stat-content">
-            <h3>Total Contacts</h3>
-            <p className="stat-number">{contactStats.totalContacts}</p>
-          </div>
+          <div className="stat-value">{contactStats.totalContacts}</div>
+          <div className="stat-title">TOTAL CONTACTS</div>
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">✅</div>
-          <div className="stat-content">
-            <h3>Active Contacts</h3>
-            <p className="stat-number">{contactStats.activeContacts}</p>
-          </div>
+          <div className="stat-value">{contactStats.activeContacts}</div>
+          <div className="stat-title">ACTIVE CONTACTS</div>
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">🔒</div>
-          <div className="stat-content">
-            <h3>Verified</h3>
-            <p className="stat-number">{contactStats.verifiedContacts}</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-content">
-            <h3>Avg per User</h3>
-            <p className="stat-number">{contactStats.averageContactsPerUser}</p>
-          </div>
+          <div className="stat-value">{contactStats.averageContactsPerUser}</div>
+          <div className="stat-title">AVG PER USER</div>
         </div>
       </div>
 
@@ -364,8 +297,6 @@ function EmergencyContactsManagement() {
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-            <option value="verified">Verified</option>
-            <option value="pending">Pending</option>
           </select>
         </div>
         
@@ -412,7 +343,7 @@ function EmergencyContactsManagement() {
                   <tr key={contact.id}>
                     <td className="contact-number">{index + 1}</td>
                     <td className="contact-user">
-                      {contact.userId.substring(0, 8)}...
+                      {userNames[contact.userId] || contact.userId.substring(0, 8) + '...'}
                     </td>
                     <td className="contact-name">
                       <div className="name-text">{contact.name}</div>
@@ -436,9 +367,9 @@ function EmergencyContactsManagement() {
                     <td className="contact-status">
                       <span 
                         className="status-badge"
-                        style={{ backgroundColor: getStatusColor(contact.isActive, contact.isVerified) }}
+                        style={{ backgroundColor: getStatusColor(contact.isActive) }}
                       >
-                        {getStatusText(contact.isActive, contact.isVerified)}
+                        {getStatusText(contact.isActive)}
                       </span>
                     </td>
                     <td className="contact-primary">
@@ -457,14 +388,6 @@ function EmergencyContactsManagement() {
                         View
                       </button>
                       <button 
-                        className="edit-btn"
-                        onClick={() => handleUpdateContact(contact.id, contact.userId, {
-                          isVerified: !contact.isVerified
-                        })}
-                      >
-                        {contact.isVerified ? 'Unverify' : 'Verify'}
-                      </button>
-                      <button 
                         className="delete-btn"
                         onClick={() => handleDeleteContact(contact.id, contact.userId)}
                       >
@@ -479,114 +402,6 @@ function EmergencyContactsManagement() {
         )}
       </div>
 
-      {/* Create Contact Modal */}
-      {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal-content create-modal">
-            <div className="modal-header">
-              <h3>Add Emergency Contact</h3>
-              <button className="modal-close" onClick={() => setShowCreateModal(false)}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <div className="form-group">
-                <label>User ID *</label>
-                <input
-                  type="text"
-                  value={newContact.userId}
-                  onChange={(e) => setNewContact({...newContact, userId: e.target.value})}
-                  placeholder="Enter user ID"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Contact Name *</label>
-                <input
-                  type="text"
-                  value={newContact.name}
-                  onChange={(e) => setNewContact({...newContact, name: e.target.value})}
-                  placeholder="Enter contact name"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Phone Number *</label>
-                <input
-                  type="tel"
-                  value={newContact.phoneNumber}
-                  onChange={(e) => setNewContact({...newContact, phoneNumber: e.target.value})}
-                  placeholder="Enter phone number"
-                  required
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Relationship</label>
-                  <select
-                    value={newContact.relationship}
-                    onChange={(e) => setNewContact({...newContact, relationship: e.target.value})}
-                  >
-                    <option value="family">Family</option>
-                    <option value="friend">Friend</option>
-                    <option value="colleague">Colleague</option>
-                    <option value="neighbor">Neighbor</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Notes</label>
-                  <input
-                    type="text"
-                    value={newContact.notes}
-                    onChange={(e) => setNewContact({...newContact, notes: e.target.value})}
-                    placeholder="Additional notes"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={newContact.isPrimary}
-                    onChange={(e) => setNewContact({...newContact, isPrimary: e.target.checked})}
-                  />
-                  Primary Contact
-                </label>
-              </div>
-
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={newContact.isVerified}
-                    onChange={(e) => setNewContact({...newContact, isVerified: e.target.checked})}
-                  />
-                  Verified Contact
-                </label>
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button className="cancel-btn" onClick={() => setShowCreateModal(false)}>
-                Cancel
-              </button>
-              <button className="create-btn" onClick={handleCreateContact}>
-                Add Contact
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Contact Details Modal */}
       {showContactDetails && selectedContact && (
@@ -604,13 +419,10 @@ function EmergencyContactsManagement() {
             <div className="modal-body">
               <div className="contact-details-grid">
                 <div className="detail-item">
-                  <strong>Contact ID:</strong> {selectedContact.id}
+                  <strong>User:</strong> {userNames[selectedContact.userId] || selectedContact.userId}
                 </div>
                 <div className="detail-item">
-                  <strong>User ID:</strong> {selectedContact.userId}
-                </div>
-                <div className="detail-item">
-                  <strong>Name:</strong> {selectedContact.name}
+                  <strong>Primary Contact:</strong> {selectedContact.name}
                 </div>
                 <div className="detail-item">
                   <strong>Phone:</strong> 
@@ -628,24 +440,6 @@ function EmergencyContactsManagement() {
                   </span>
                 </div>
                 <div className="detail-item">
-                  <strong>Status:</strong> 
-                  <span 
-                    className="status-badge"
-                    style={{ backgroundColor: getStatusColor(selectedContact.isActive, selectedContact.isVerified) }}
-                  >
-                    {getStatusText(selectedContact.isActive, selectedContact.isVerified)}
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <strong>Primary Contact:</strong> {selectedContact.isPrimary ? 'Yes' : 'No'}
-                </div>
-                <div className="detail-item">
-                  <strong>Verified:</strong> {selectedContact.isVerified ? 'Yes' : 'No'}
-                </div>
-                <div className="detail-item">
-                  <strong>Notes:</strong> {selectedContact.notes || 'None'}
-                </div>
-                <div className="detail-item">
                   <strong>Created:</strong> {formatDate(selectedContact.createdAt)}
                 </div>
                 <div className="detail-item">
@@ -654,17 +448,6 @@ function EmergencyContactsManagement() {
               </div>
             </div>
             <div className="modal-actions">
-              <button 
-                className="edit-btn"
-                onClick={() => {
-                  handleUpdateContact(selectedContact.id, selectedContact.userId, {
-                    isVerified: !selectedContact.isVerified
-                  })
-                  handleCloseContactDetails()
-                }}
-              >
-                {selectedContact.isVerified ? 'Unverify' : 'Verify'}
-              </button>
               <button className="close-btn" onClick={handleCloseContactDetails}>
                 Close
               </button>

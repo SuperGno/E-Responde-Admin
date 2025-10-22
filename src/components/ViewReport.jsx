@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import { getDatabase, ref, get, set, push } from 'firebase/database'
 import { ref as storageRef, getDownloadURL } from 'firebase/storage'
 import { app, storage } from '../firebase'
+import StatusTag from './StatusTag'
 import './ViewReport.css'
 
 function ViewReport({ reportId, onBackToDashboard }) {
@@ -59,6 +60,19 @@ function ViewReport({ reportId, onBackToDashboard }) {
       max: timeInMinutes + 3,
       trafficCondition
     };
+  }
+
+  const getStatusColor = (status) => {
+    const normalizedStatus = status.toLowerCase();
+    if (normalizedStatus === "resolved" || normalizedStatus === "case resolved") {
+      return "status-resolved";
+    } else if (normalizedStatus === "in progress") {
+      return "status-in-progress";
+    } else if (normalizedStatus === "received") {
+      return "status-received";
+    } else {
+      return "status-pending";
+    }
   }
 
   // Generate route suggestions based on location
@@ -629,7 +643,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
     <>
     <div className="page-content">
       <div className="report-header">
-        <h1>View Report</h1>
+        <h1></h1>
         <button 
           className="close-button"
           onClick={onBackToDashboard}
@@ -661,7 +675,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
               </div>
               <div className="detail-item">
                 <label>Status:</label>
-                <span className="status-badge status-pending">{reportData.status}</span>
+                <StatusTag status={reportData.status} />
               </div>
             </div>
           </div>
@@ -814,7 +828,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
                     <p>
                       <strong>Recommended Responder:</strong> {police.firstName} {police.lastName} 
                       ({police.distance.toFixed(2)} km away, ETA {police.eta.min}-{police.eta.max} mins). 
-                      <strong>Suggested route:</strong> {police.route.name} – {police.eta.trafficCondition} traffic.
+                      <strong>Suggested route:</strong> {police.route.name} – {police.eta.trafficCondition} traffic. This is the fastest route to the crime scene.
                     </p>
                     <p className="contact-info">
                       <strong>Contact:</strong> {police.contactNumber || 'Not available'} | 

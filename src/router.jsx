@@ -4,7 +4,6 @@ import RequireAuth from './routes/RequireAuth'
 import Login from './components/Login.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import Analytics from './components/Analytics.jsx'
-import Heatmap from './components/Heatmap.jsx'
 import EnhancedDispatch from './components/EnhancedDispatch.jsx'
 import AccountManagement from './components/AccountManagement.jsx'
 import VoIPManagement from './components/VoIPManagement.jsx'
@@ -21,6 +20,11 @@ function ViewReportRoute() {
   return <ViewReport reportId={id} onBackToDashboard={() => navigate('/')} />
 }
 
+function DashboardRoute() {
+  const navigate = useNavigate()
+  return <Dashboard onNavigateToReport={(reportId) => navigate(`/report/${reportId}`)} />
+}
+
 const router = createBrowserRouter([
   { path: '/login', element: <Login onLoginSuccess={() => {}} /> },
   { path: '/unauthorized', element: <div className="p-6">Unauthorized</div> },
@@ -32,10 +36,9 @@ const router = createBrowserRouter([
           </RequireAuth>
         ),
     children: [
-      { index: true, element: <Dashboard onNavigateToReport={() => {}} /> },
+      { index: true, element: <DashboardRoute /> },
       { path: 'report/:id', element: <ViewReportRoute /> },
       { path: 'analytics', element: <Analytics /> },
-      { path: 'heatmap', element: <Heatmap /> },
       { path: 'dispatch', element: <EnhancedDispatch /> },
       { path: 'voip', element: <VoIPManagement /> },
       { path: 'sos', element: <SOSManagement /> },

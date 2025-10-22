@@ -1,0 +1,50 @@
+/* Status Tag Component Styles */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  width: fit-content;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+/* Status Color Classes */
+.status-pending {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+.status-received {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+.status-in-progress {
+  background-color: #fed7aa;
+  color: #9a3412;
+  border-color: #ea580c;
+}
+
+.status-resolved {
+  background-color: #d1fae5;
+  color: #065f46;
+  border-color: #10b981;
+}
+
+/* Hover effects */
+.status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Focus styles for accessibility */
+.status-badge:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

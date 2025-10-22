@@ -26,6 +26,9 @@ function EnhancedDispatch() {
   const [liveTracking, setLiveTracking] = useState({})
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
+  const [showActiveOfficersModal, setShowActiveOfficersModal] = useState(false)
+  const [activeDispatches, setActiveDispatches] = useState([])
+  const [undispatching, setUndispatching] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -45,25 +48,95 @@ function EnhancedDispatch() {
       setLoading(true)
       setError('')
       
-      // Fetch reports and patrol units in parallel
-      const [reportsSnapshot, unitsSnapshot] = await Promise.all([
+      // Fetch reports, patrol units, and SOS alerts in parallel
+      const [reportsSnapshot, unitsSnapshot, sosSnapshot] = await Promise.all([
         get(ref(realtimeDb, 'civilian/civilian crime reports')),
-        get(ref(realtimeDb, 'police/police account'))
+        get(ref(realtimeDb, 'police/police account')),
+        get(ref(realtimeDb, 'civilian/sos alerts'))
       ])
       
-      // Process reports
+      // Process reports and clean up old/invalid data
       const reportsList = []
+      const reportsToDelete = []
+      
       if (reportsSnapshot.exists()) {
         const reportsData = reportsSnapshot.val()
+        const currentDate = new Date()
+        const oct20 = new Date(currentDate.getFullYear(), 9, 20) // October 20
+        const oct22 = new Date(currentDate.getFullYear(), 9, 22) // October 22
+        
         Object.keys(reportsData).forEach(reportId => {
           const report = reportsData[reportId]
+          const reportDate = new Date(report.createdAt || report.dateTime)
+          
+          // Check if report is outside the date range (not between Oct 20-22)
+          const isOutsideDateRange = reportDate < oct20 || reportDate > oct22
+          
+          // Check if report has no location data
+          const hasNoLocation = !report.location || 
+            (!report.location.address && !report.location.latitude && !report.location.longitude)
+          
+          // Mark for deletion if outside date range or no location
+          if (isOutsideDateRange || hasNoLocation) {
+            reportsToDelete.push(reportId)
+            return
+          }
+          
           reportsList.push({
             id: reportId,
             ...report,
-            createdAt: new Date(report.createdAt || report.dateTime),
+            createdAt: reportDate,
             dispatchedAt: report.dispatchInfo?.dispatchedAt ? new Date(report.dispatchInfo.dispatchedAt) : null
           })
         })
+      }
+      
+      // Delete old/invalid reports
+      if (reportsToDelete.length > 0) {
+        console.log(`Cleaning up ${reportsToDelete.length} old/invalid reports...`)
+        const deletePromises = reportsToDelete.map(reportId => {
+          const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${reportId}`)
+          return update(reportRef, null) // Set to null to delete
+        })
+        await Promise.all(deletePromises)
+        console.log(`Successfully deleted ${reportsToDelete.length} old/invalid reports`)
+      }
+      
+      // Clean up SOS alerts
+      const sosToDelete = []
+      if (sosSnapshot.exists()) {
+        const sosData = sosSnapshot.val()
+        const currentDate = new Date()
+        const oct20 = new Date(currentDate.getFullYear(), 9, 20) // October 20
+        const oct22 = new Date(currentDate.getFullYear(), 9, 22) // October 22
+        
+        Object.keys(sosData).forEach(sosId => {
+          const sos = sosData[sosId]
+          const sosDate = new Date(sos.createdAt || sos.dateTime)
+          
+          // Check if SOS is outside the date range (not between Oct 20-22)
+          const isOutsideDateRange = sosDate < oct20 || sosDate > oct22
+          
+          // Check if SOS has no location data
+          const hasNoLocation = !sos.location || 
+            (!sos.location.address && !sos.location.latitude && !sos.location.longitude)
+          
+          // Mark for deletion if outside date range or no location
+          if (isOutsideDateRange || hasNoLocation) {
+            sosToDelete.push(sosId)
+          }
+        })
+      }
+      
+      // Delete old/invalid SOS alerts
+      if (sosToDelete.length > 0) {
+        console.log(`Cleaning up ${sosToDelete.length} old/invalid SOS alerts...`)
+        const deleteSosPromises = sosToDelete.map(sosId => {
+          const sosRef = ref(realtimeDb, `civilian/sos alerts/${sosId}`)
+          return update(sosRef, null) // Set to null to delete
+        })
+        await Promise.all(deleteSosPromises)
+        console.log(`Successfully deleted ${sosToDelete.length} old/invalid SOS alerts`)
       }
       
       // Process patrol units
@@ -156,10 +229,11 @@ function EnhancedDispatch() {
 
   const calculateRealTimeStats = (reportsList, unitsList) => {
     const totalReports = reportsList.length
-    const activeDispatches = reportsList.filter(report => 
+    const activeDispatchesList = reportsList.filter(report => 
       report.status?.toLowerCase() === 'dispatched' || 
       report.status?.toLowerCase() === 'in progress'
-    ).length
+    )
+    const activeDispatchesCount = activeDispatchesList.length
     const availableUnits = unitsList.filter(unit => 
       unit.status === 'Available'
     ).length
@@ -181,9 +255,29 @@ function EnhancedDispatch() {
       ? totalResponseTime / dispatchedReports.length 
       : 0
     
+    // Update active dispatches with officer information
+    const activeDispatchesWithOfficers = activeDispatchesList.map(report => {
+      const assignedOfficer = unitsList.find(unit => unit.id === report.dispatchInfo?.unit)
+      return {
+        ...report,
+        assignedOfficer: assignedOfficer ? {
+          id: assignedOfficer.id,
+          name: `${assignedOfficer.policeRank} ${assignedOfficer.firstName} ${assignedOfficer.lastName}`,
+          email: assignedOfficer.email,
+          contactNumber: assignedOfficer.contactNumber,
+          status: assignedOfficer.status,
+          location: assignedOfficer.latitude && assignedOfficer.longitude ? {
+            latitude: assignedOfficer.latitude,
+            longitude: assignedOfficer.longitude
+          } : null
+        } : null
+      }
+    })
+    
+    setActiveDispatches(activeDispatchesWithOfficers)
     setRealTimeStats({
       totalReports,
-      activeDispatches,
+      activeDispatches: activeDispatchesCount,
       availableUnits,
       averageResponseTime: Math.round(averageResponseTime)
     })
@@ -351,14 +445,129 @@ function EnhancedDispatch() {
     }
   }
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending': return '#f59e0b'
-      case 'received': return '#3b82f6'
-      case 'in progress': return '#8b5cf6'
-      case 'dispatched': return '#10b981'
-      case 'resolved': return '#6b7280'
-      default: return '#6b7280'
+  const getStatusClass = (status) => {
+    const normalizedStatus = status?.toLowerCase();
+    if (normalizedStatus === "resolved" || normalizedStatus === "case resolved") {
+      return "status-resolved";
+    } else if (normalizedStatus === "in progress") {
+      return "status-in-progress";
+    } else if (normalizedStatus === "received") {
+      return "status-received";
+    } else if (normalizedStatus === "dispatched") {
+      return "status-dispatched";
+    } else {
+      return "status-pending";
+    }
+  }
+
+  // Manual cleanup function for testing
+  const handleCleanupData = async () => {
+    const confirmCleanup = window.confirm(
+      'This will delete all reports and SOS alerts outside Oct 20-22 date range and those without location data. Continue?'
+    )
+    
+    if (!confirmCleanup) return
+    
+    try {
+      setLoading(true)
+      await fetchData() // This will trigger the cleanup
+      alert('Data cleanup completed successfully!')
+    } catch (error) {
+      console.error('Error during cleanup:', error)
+      alert('Error during cleanup. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Undispatch function to make officer available again
+  const handleUndispatch = async (dispatch) => {
+    console.log('Undispatch triggered for:', dispatch)
+    
+    if (!dispatch.assignedOfficer) {
+      alert('No officer information available for this dispatch')
+      return
+    }
+
+    if (undispatching) {
+      alert('Undispatch is already in progress. Please wait...')
+      return
+    }
+
+    const confirmUndispatch = window.confirm(
+      `Are you sure you want to undispatch ${dispatch.assignedOfficer.name}? This will make them available for other assignments.`
+    )
+
+    if (!confirmUndispatch) return
+
+    setUndispatching(true)
+    console.log('Starting undispatch process...')
+
+    try {
+      console.log('Updating officer status...')
+      // Update officer status back to Available
+      const officerRef = ref(realtimeDb, `police/police account/${dispatch.assignedOfficer.id}`)
+      await update(officerRef, {
+        status: 'Available',
+        currentAssignment: null
+      })
+      console.log('Officer status updated successfully')
+
+      console.log('Updating report status...')
+      // Update report status back to Pending
+      const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${dispatch.id}`)
+      await update(reportRef, {
+        status: 'Pending',
+        dispatchInfo: null
+      })
+      console.log('Report status updated successfully')
+
+      // Create notification for the officer about undispatch
+      const notificationId = `undispatch_${dispatch.id}_${Date.now()}`
+      const notificationRef = ref(realtimeDb, `police/notifications/${dispatch.assignedOfficer.id}/${notificationId}`)
+      
+      const notificationData = {
+        id: notificationId,
+        type: 'undispatch_notification',
+        title: 'Dispatch Cancelled',
+        message: `Your assignment to ${dispatch.crimeType || 'emergency'} report has been cancelled. You are now available for new assignments.`,
+        reportId: dispatch.id,
+        reportDetails: {
+          crimeType: dispatch.crimeType || 'Emergency',
+          location: dispatch.location?.address || 'Location not available',
+          reporterName: dispatch.reporterName || 'Anonymous',
+          description: dispatch.description || 'No description provided'
+        },
+        createdAt: new Date().toISOString(),
+        isRead: false,
+        isActive: true
+      }
+
+      await update(notificationRef, notificationData)
+
+      // Also create a general notification
+      const generalNotificationRef = ref(realtimeDb, `police/notifications/general/${notificationId}`)
+      const generalNotificationData = {
+        ...notificationData,
+        assignedOfficer: {
+          id: dispatch.assignedOfficer.id,
+          name: dispatch.assignedOfficer.name,
+          email: dispatch.assignedOfficer.email
+        }
+      }
+
+      await update(generalNotificationRef, generalNotificationData)
+
+      alert(`Officer ${dispatch.assignedOfficer.name} has been successfully undispatched and is now available for new assignments.`)
+
+      // Refresh data to update the UI
+      await fetchData()
+
+    } catch (error) {
+      console.error('Error undispatching officer:', error)
+      alert('Failed to undispatch officer. Please try again.')
+    } finally {
+      setUndispatching(false)
     }
   }
 
@@ -381,45 +590,78 @@ function EnhancedDispatch() {
 
   return (
     <div className="enhanced-dispatch-container">
-      <div className="dispatch-header">
-        <h1>Enhanced Dispatch Center</h1>
-        <p>Real-time emergency response management with live tracking</p>
-      </div>
-
-      {/* Real-time Statistics */}
-      <div className="real-time-stats">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-content">
-            <h3>Total Reports</h3>
-            <p className="stat-number">{realTimeStats.totalReports}</p>
+      <section className="mb-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-black mb-2" style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: '800', 
+            color: '#1e293b', 
+            letterSpacing: '-0.025em',
+            textTransform: 'uppercase'
+          }}>Dispatch Management</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="card">
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{realTimeStats.totalReports}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Total Reports</div>
+          </div>
+          
+          <div className="card cursor-pointer transition-all duration-200 hover:bg-gray-50" onClick={() => setShowActiveOfficersModal(true)}>
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{realTimeStats.activeDispatches}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Active Dispatches</div>
+          </div>
+          
+          <div className="card">
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{realTimeStats.availableUnits}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Available Units</div>
+          </div>
+          
+          <div className="card">
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{realTimeStats.averageResponseTime}m</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Avg Response Time</div>
           </div>
         </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">🚨</div>
-          <div className="stat-content">
-            <h3>Active Dispatches</h3>
-            <p className="stat-number">{realTimeStats.activeDispatches}</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">👮</div>
-          <div className="stat-content">
-            <h3>Available Units</h3>
-            <p className="stat-number">{realTimeStats.availableUnits}</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">⏱️</div>
-          <div className="stat-content">
-            <h3>Avg Response</h3>
-            <p className="stat-number">{realTimeStats.averageResponseTime}m</p>
-          </div>
-        </div>
-      </div>
+      </section>
 
       {error && (
         <div className="error-message">
@@ -464,14 +706,24 @@ function EnhancedDispatch() {
           </select>
         </div>
         
-        <button onClick={fetchData} className="refresh-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23,4 23,10 17,10"></polyline>
-            <polyline points="1,20 1,14 7,14"></polyline>
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-          </svg>
-          Refresh
-        </button>
+         <button onClick={fetchData} className="refresh-btn">
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+             <polyline points="23,4 23,10 17,10"></polyline>
+             <polyline points="1,20 1,14 7,14"></polyline>
+             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+           </svg>
+           Refresh
+         </button>
+         
+         <button onClick={handleCleanupData} className="cleanup-btn">
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+             <polyline points="3,6 5,6 21,6"></polyline>
+             <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+             <line x1="10" y1="11" x2="10" y2="17"></line>
+             <line x1="14" y1="11" x2="14" y2="17"></line>
+           </svg>
+           Cleanup Data
+         </button>
       </div>
 
       {/* Reports Grid */}
@@ -493,10 +745,7 @@ function EnhancedDispatch() {
                 <div className="report-header">
                   <div className="report-type">
                     <span className="type-badge">{report.crimeType || 'Unknown'}</span>
-                    <span 
-                      className="status-badge" 
-                      style={{ backgroundColor: getStatusColor(report.status) }}
-                    >
+                    <span className={`status-badge ${getStatusClass(report.status)}`}>
                       {report.status}
                     </span>
                     {report.priority && (
@@ -685,6 +934,131 @@ function EnhancedDispatch() {
                 disabled={isDispatching}
               >
                 {isDispatching ? 'Dispatching...' : 'Dispatch Unit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Officers Modal */}
+      {showActiveOfficersModal && (
+        <div className="modal-overlay">
+          <div className="modal-content active-officers-modal">
+            <div className="modal-header">
+              <h3>Active Officers in Dispatch</h3>
+              <button className="modal-close" onClick={() => setShowActiveOfficersModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {activeDispatches.length === 0 ? (
+                <div className="no-active-officers">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 12l2 2 4-4"></path>
+                    <circle cx="12" cy="12" r="10"></circle>
+                  </svg>
+                  <h4>No Active Dispatches</h4>
+                  <p>There are currently no officers actively dispatched to incidents.</p>
+                </div>
+              ) : (
+                <div className="active-officers-list">
+                  {activeDispatches.map((dispatch) => (
+                    <div key={dispatch.id} className="active-officer-card">
+                      <div className="officer-info">
+                        <div className="officer-header">
+                          <h4>{dispatch.assignedOfficer?.name || 'Unknown Officer'}</h4>
+                          <span className={`status-badge ${getStatusClass(dispatch.status)}`}>
+                            {dispatch.status}
+                          </span>
+                        </div>
+                        
+                        <div className="officer-details">
+                          <div className="detail-row">
+                            <strong>Report ID:</strong> {dispatch.id}
+                          </div>
+                          <div className="detail-row">
+                            <strong>Crime Type:</strong> {dispatch.crimeType || 'Unknown'}
+                          </div>
+                          <div className="detail-row">
+                            <strong>Location:</strong> {dispatch.location?.address || 'No location'}
+                          </div>
+                          <div className="detail-row">
+                            <strong>Reporter:</strong> {dispatch.reporterName || 'Anonymous'}
+                          </div>
+                          {dispatch.assignedOfficer && (
+                            <>
+                              <div className="detail-row">
+                                <strong>Officer Contact:</strong> {dispatch.assignedOfficer.contactNumber || 'Not available'}
+                              </div>
+                              <div className="detail-row">
+                                <strong>Officer Email:</strong> {dispatch.assignedOfficer.email || 'Not available'}
+                              </div>
+                              <div className="detail-row">
+                                <strong>Dispatch Time:</strong> {dispatch.dispatchInfo?.dispatchedAt ? 
+                                  new Date(dispatch.dispatchInfo.dispatchedAt).toLocaleString() : 'Unknown'
+                                }
+                              </div>
+                              {dispatch.dispatchInfo?.priority && (
+                                <div className="detail-row">
+                                  <strong>Priority:</strong> 
+                                  <span className={`priority-badge priority-${dispatch.dispatchInfo.priority.toLowerCase()}`}>
+                                    {dispatch.dispatchInfo.priority}
+                                  </span>
+                                </div>
+                              )}
+                              {dispatch.dispatchInfo?.estimatedTime && (
+                                <div className="detail-row">
+                                  <strong>Estimated Response Time:</strong> {dispatch.dispatchInfo.estimatedTime}
+                                </div>
+                              )}
+                              {dispatch.dispatchInfo?.notes && (
+                                <div className="detail-row">
+                                  <strong>Dispatch Notes:</strong> {dispatch.dispatchInfo.notes}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        
+                        <div className="officer-actions">
+                          <button 
+                            className="undispatch-btn"
+                            onClick={() => handleUndispatch(dispatch)}
+                            disabled={undispatching}
+                          >
+                            {undispatching ? (
+                              <>
+                                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                  <path d="M12 2a10 10 0 0 1 10 10"></path>
+                                </svg>
+                                Undispatching...
+                              </>
+                            ) : (
+                              <>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M9 12l2 2 4-4"></path>
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                </svg>
+                                Undispatch Officer
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setShowActiveOfficersModal(false)}>
+                Close
               </button>
             </div>
           </div>

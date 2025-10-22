@@ -1,7 +1,66 @@
 import { useState, useEffect } from 'react'
 import { realtimeDb } from '../firebase'
 import { ref, get, onValue, off } from 'firebase/database'
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import 'leaflet.heat'
 import './Analytics.css'
+import './Heatmap.css'
+
+// Add CSS animation for loading spinner
+const spinAnimation = `
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+`
+
+// Inject the CSS animation
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style')
+  style.textContent = spinAnimation
+  document.head.appendChild(style)
+}
+
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+})
+
+// HeatmapLayer component
+function HeatmapLayer({ data, intensity, radius }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    if (!data || data.length === 0) return
+    
+    // Create heatmap layer with increased opacity
+    const heatmapLayer = L.heatLayer(data, {
+      radius: radius,
+      blur: 15,
+      maxZoom: 17,
+      max: 1.0,
+      gradient: {
+        0.0: 'rgba(0, 0, 255, 0.3)',      // Blue with opacity
+        0.2: 'rgba(0, 255, 255, 0.4)',    // Cyan with opacity
+        0.4: 'rgba(0, 255, 0, 0.5)',       // Lime with opacity
+        0.6: 'rgba(255, 255, 0, 0.6)',    // Yellow with opacity
+        0.8: 'rgba(255, 165, 0, 0.7)',    // Orange with opacity
+        1.0: 'rgba(255, 0, 0, 0.8)'       // Red with opacity
+      }
+    }).addTo(map)
+    
+    return () => {
+      map.removeLayer(heatmapLayer)
+    }
+  }, [data, intensity, radius, map])
+  
+  return null
+}
 
 function Analytics() {
   const [forecastingData, setForecastingData] = useState(null)
@@ -33,6 +92,20 @@ function Analytics() {
     dispatchEfficiency: 0,
     resolutionRate: 0
   })
+  
+  // Heatmap state variables
+  const [reports, setReports] = useState([])
+  const [selectedCrimeTypeHeatmap, setSelectedCrimeTypeHeatmap] = useState('')
+  const [timeRange, setTimeRange] = useState('30')
+  const [intensity, setIntensity] = useState(5)
+  const [radius, setRadius] = useState(50)
+  const [showConcentricCircles, setShowConcentricCircles] = useState(false)
+  const [referencePoint, setReferencePoint] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [reportsPerPage] = useState(6)
+  const [lastUpdate, setLastUpdate] = useState(null)
+  const [availableCrimeTypes, setAvailableCrimeTypes] = useState([])
+  const [showPoliceStations, setShowPoliceStations] = useState(true)
 
   // API base URL for your ARIMA forecasting API
   // Local development: http://127.0.0.1:5000/
@@ -390,6 +463,245 @@ function Analytics() {
     }
   }
 
+  // Heatmap data processing functions
+  const getFilteredReports = () => {
+    let filtered = reports.filter(report => 
+      report.location?.latitude && report.location?.longitude
+    )
+
+    // Filter by crime type with improved matching
+    if (selectedCrimeTypeHeatmap) {
+      filtered = filtered.filter(report => {
+        const reportCrimeType = report.crimeType || ''
+        const selectedType = selectedCrimeTypeHeatmap.toLowerCase()
+        
+        // Exact match first
+        if (reportCrimeType.toLowerCase() === selectedType) {
+          return true
+        }
+        
+        // Partial match for variations
+        if (reportCrimeType.toLowerCase().includes(selectedType)) {
+          return true
+        }
+        
+        // Handle specific cases
+        if (selectedType === 'breaking and entering' && 
+            (reportCrimeType.toLowerCase().includes('breaking') || 
+             reportCrimeType.toLowerCase().includes('burglary'))) {
+          return true
+        }
+        
+        if (selectedType === 'vehicle theft' && 
+            (reportCrimeType.toLowerCase().includes('vehicle') || 
+             reportCrimeType.toLowerCase().includes('car'))) {
+          return true
+        }
+        
+        if (selectedType === 'drug-related' && 
+            reportCrimeType.toLowerCase().includes('drug')) {
+          return true
+        }
+        
+        if (selectedType === 'domestic violence' && 
+            (reportCrimeType.toLowerCase().includes('domestic') || 
+             reportCrimeType.toLowerCase().includes('violence'))) {
+          return true
+        }
+        
+        return false
+      })
+    }
+
+    // Filter by time range
+    if (timeRange !== 'all') {
+      const days = parseInt(timeRange)
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - days)
+      
+      filtered = filtered.filter(report => {
+        const reportDate = new Date(report.dateTime || report.createdAt)
+        return reportDate >= cutoffDate
+      })
+    }
+
+    return filtered
+  }
+
+  // Create heatmap data points with proper intensity scaling
+  const createHeatmapData = () => {
+    const filteredReports = getFilteredReports()
+    const heatmapPoints = []
+    
+    console.log(`Creating heatmap data from ${filteredReports.length} filtered reports`)
+    
+    // Group reports by location and create weighted points
+    const locationGroups = new Map()
+    
+    filteredReports.forEach(report => {
+      try {
+        // Handle different location data formats from mobile app
+        let lat, lng
+        
+        if (report.location) {
+          lat = parseFloat(report.location.latitude || report.location.lat)
+          lng = parseFloat(report.location.longitude || report.location.lng)
+        } else {
+          // Fallback to direct properties
+          lat = parseFloat(report.latitude || report.lat)
+          lng = parseFloat(report.longitude || report.lng)
+        }
+        
+        // Validate coordinates
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+          console.warn('Invalid coordinates for report:', report.id, { lat, lng })
+          return
+        }
+        
+        // Check if coordinates are within reasonable bounds (Philippines)
+        if (lat < 4 || lat > 22 || lng < 116 || lng > 127) {
+          console.warn('Coordinates outside Philippines bounds:', { lat, lng })
+          return
+        }
+        
+        const key = `${lat.toFixed(4)},${lng.toFixed(4)}`
+        
+        if (locationGroups.has(key)) {
+          locationGroups.get(key).count++
+          locationGroups.get(key).reports.push(report)
+        } else {
+          locationGroups.set(key, {
+            lat,
+            lng,
+            count: 1,
+            reports: [report]
+          })
+        }
+      } catch (error) {
+        console.warn('Error processing report for heatmap:', report.id, error)
+      }
+    })
+    
+    console.log(`Grouped into ${locationGroups.size} location clusters`)
+    
+    // Convert to heatmap format with intensity based on crime count and user intensity setting
+    locationGroups.forEach(group => {
+      // Base intensity from crime count (0-1)
+      const baseIntensity = Math.min(1.0, group.count / 10)
+      // Apply user intensity multiplier (1-10 scale to 0.1-1.0 multiplier)
+      const userIntensityMultiplier = intensity / 10
+      // Final intensity
+      const finalIntensity = Math.min(1.0, baseIntensity * userIntensityMultiplier)
+      
+      heatmapPoints.push([group.lat, group.lng, finalIntensity])
+    })
+    
+    console.log(`Created ${heatmapPoints.length} heatmap points with intensity multiplier: ${intensity}/10`)
+    return heatmapPoints
+  }
+
+  // Debug function to test heatmap data
+  const debugHeatmapData = () => {
+    console.log('=== HEATMAP DEBUG INFO ===')
+    console.log('Total reports:', reports.length)
+    console.log('Reports with location:', reports.filter(r => r.location?.latitude && r.location?.longitude).length)
+    console.log('Filtered reports:', getFilteredReports().length)
+    console.log('Heatmap points:', createHeatmapData().length)
+    console.log('Selected crime type:', selectedCrimeTypeHeatmap)
+    console.log('Time range:', timeRange)
+    console.log('Intensity:', intensity)
+    console.log('Radius:', radius)
+    
+    // Show crime type distribution
+    const crimeTypeCounts = {}
+    reports.forEach(report => {
+      const crimeType = report.crimeType || 'Unknown'
+      crimeTypeCounts[crimeType] = (crimeTypeCounts[crimeType] || 0) + 1
+    })
+    console.log('Crime type distribution:', crimeTypeCounts)
+    
+    // Show filtered crime types
+    if (selectedCrimeTypeHeatmap) {
+      const filteredReports = getFilteredReports()
+      const filteredCrimeTypes = filteredReports.map(r => r.crimeType || 'Unknown')
+      console.log('Filtered crime types:', filteredCrimeTypes)
+    }
+    
+    console.log('========================')
+  }
+
+  // Generate test data for heatmap if no real data exists
+  const generateTestHeatmapData = () => {
+    const testPoints = [
+      [14.6042, 120.9822, 0.8], // Manila
+      [14.5995, 120.9842, 0.6], // Tondo
+      [14.6087, 120.9671, 0.9], // Binondo
+      [14.6122, 120.9888, 0.4], // Quiapo
+      [14.5895, 120.9755, 0.7], // Malate
+    ]
+    console.log('Generated test heatmap data:', testPoints.length, 'points')
+    return testPoints
+  }
+
+  // Police station data for the area
+  const policeStations = [
+    {
+      id: 'station-main',
+      name: 'Tondo Police Station',
+      position: [14.6100, 120.9800], // Approximate coordinates for 987-G Dagupan St, Tondo, Manila
+      address: '987-G Dagupan St, Tondo, Manila, 1012 Metro Manila',
+      officers: 50,
+      status: 'Active',
+      isMainStation: true
+    }
+  ]
+
+
+  // Extract unique crime types from reports
+  const extractCrimeTypes = (reportsArray) => {
+    const crimeTypes = new Set()
+    reportsArray.forEach(report => {
+      if (report.crimeType && report.crimeType.trim()) {
+        crimeTypes.add(report.crimeType.trim())
+      }
+    })
+    return Array.from(crimeTypes).sort()
+  }
+
+  // Fetch heatmap data from Firebase
+  const fetchHeatmapData = async () => {
+    try {
+      const reportsRef = ref(realtimeDb, 'civilian/civilian crime reports')
+      const snapshot = await get(reportsRef)
+      
+      if (snapshot.exists()) {
+        const reportsData = snapshot.val()
+        const reportsArray = Object.entries(reportsData).map(([key, data]) => ({
+          id: key,
+          ...data,
+          // Ensure location data is properly formatted
+          location: data.location || {
+            latitude: data.latitude || data.lat,
+            longitude: data.longitude || data.lng,
+            address: data.address || data.location_address || 'Unknown location'
+          }
+        }))
+        
+        setReports(reportsArray)
+        setAvailableCrimeTypes(extractCrimeTypes(reportsArray))
+        setLastUpdate(new Date())
+        console.log(`Loaded ${reportsArray.length} reports for heatmap`)
+        console.log('Available crime types:', extractCrimeTypes(reportsArray))
+      } else {
+        setReports([])
+        setAvailableCrimeTypes([])
+        console.log('No crime reports found for heatmap')
+      }
+    } catch (err) {
+      console.error('Error fetching heatmap data:', err)
+    }
+  }
+
   useEffect(() => {
     const initializeData = async () => {
       // Check API health first
@@ -406,6 +718,9 @@ function Analytics() {
       fetchUserEngagement()
       fetchCrimeTrends()
       calculateResponseMetrics()
+      
+      // Fetch heatmap data
+      fetchHeatmapData()
     }
     
     initializeData()
@@ -415,9 +730,30 @@ function Analytics() {
     const callsRef = ref(realtimeDb, 'voip_calls')
     const alertsRef = ref(realtimeDb, 'sos_alerts')
     
-    const unsubscribeReports = onValue(reportsRef, () => {
+    const unsubscribeReports = onValue(reportsRef, (snapshot) => {
       fetchSystemMetrics()
       calculateResponseMetrics()
+      
+       // Update heatmap data in real-time
+       if (snapshot.exists()) {
+         const reportsData = snapshot.val()
+         const reportsArray = Object.entries(reportsData).map(([key, data]) => ({
+           id: key,
+           ...data,
+           // Ensure location data is properly formatted
+           location: data.location || {
+             latitude: data.latitude || data.lat,
+             longitude: data.longitude || data.lng,
+             address: data.address || data.location_address || 'Unknown location'
+           }
+         }))
+         
+         setReports(reportsArray)
+         setAvailableCrimeTypes(extractCrimeTypes(reportsArray))
+         setLastUpdate(new Date())
+         console.log(`Real-time heatmap update: ${reportsArray.length} reports`)
+         console.log('Updated crime types:', extractCrimeTypes(reportsArray))
+       }
     })
     
     const unsubscribeCalls = onValue(callsRef, () => {
@@ -441,6 +777,11 @@ function Analytics() {
       fetchForecastingData()
     }
   }, [selectedCrimeType, selectedLocation, selectedMonths])
+
+  // Reset heatmap page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedCrimeTypeHeatmap, timeRange])
 
   // Calculate max value for chart scaling
   const data = forecastingData
@@ -481,168 +822,12 @@ function Analytics() {
 
   return (
     <div className="page-content">
-      <h1>Analytics Dashboard</h1>
       <div className="analytics-content">
         {/* Unified Analytics Header */}
         <div className="analytics-header">
-          <h2>Crime Analytics & User Engagement</h2>
-          <p>Real-time correlation between crime patterns and user engagement</p>
+          <h2>Crime Trend Analytics</h2>
         </div>
 
-        {/* Connected Charts Section */}
-        <div className="connected-charts-section">
-          <div className="chart-placeholder">
-            <h3>User Engagement vs Crime Patterns</h3>
-            <div className="line-chart-container">
-              <svg className="line-chart" viewBox="0 0 500 250" preserveAspectRatio="xMidYMid meet">
-                {/* Grid lines */}
-                <defs>
-                  <pattern id="grid" width="50" height="25" patternUnits="userSpaceOnUse">
-                    <path d="M 50 0 L 0 0 0 25" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-                
-                {/* Y-axis labels */}
-                {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
-                  <g key={index}>
-                    <line 
-                      x1="40" 
-                      y1={30 + ratio * 180} 
-                      x2="460" 
-                      y2={30 + ratio * 180} 
-                      stroke="#e2e8f0" 
-                      strokeWidth="1"
-                    />
-                    <text 
-                      x="35" 
-                      y={35 + ratio * 180} 
-                      textAnchor="end" 
-                      fontSize="10" 
-                      fill="#64748b"
-                    >
-                      {Math.round(maxEngagement * (1 - ratio))}
-                    </text>
-                  </g>
-                ))}
-                
-                {/* X-axis labels */}
-                {userEngagementData.map((item, index) => (
-                  <text 
-                    key={index}
-                    x={60 + (index * 60)} 
-                    y="240" 
-                    textAnchor="middle" 
-                    fontSize="10" 
-                    fill="#64748b"
-                  >
-                    {item.month}
-                  </text>
-                ))}
-                
-                {/* User Engagement Line */}
-                <path
-                  d={userEngagementData.map((item, index) => {
-                    const x = 60 + (index * 60)
-                    const y = 30 + ((maxEngagement - item.engagement) / maxEngagement) * 180
-                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
-                  }).join(' ')}
-                  fill="none"
-                  stroke="#8b5cf6"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                
-                {/* Crime Pattern Line */}
-                <path
-                  d={userEngagementData.map((item, index) => {
-                    const x = 60 + (index * 60)
-                    const y = 30 + ((maxEngagement - (item.crimeCount * 4)) / maxEngagement) * 180
-                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
-                  }).join(' ')}
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth="2"
-                  strokeDasharray="5,5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                
-                {/* Data points */}
-                {userEngagementData.map((item, index) => {
-                  const x = 60 + (index * 60)
-                  const y = 30 + ((maxEngagement - item.engagement) / maxEngagement) * 180
-                  return (
-                    <circle
-                      key={index}
-                      cx={x}
-                      cy={y}
-                      r="4"
-                      fill="#8b5cf6"
-                      stroke="white"
-                      strokeWidth="2"
-                    />
-                  )
-                })}
-                
-                {/* Chart title */}
-                <text 
-                  x="250" 
-                  y="20" 
-                  textAnchor="middle" 
-                  fontSize="14" 
-                  fontWeight="600" 
-                  fill="#1e293b"
-                >
-                  User Engagement vs Crime Patterns
-                </text>
-                
-                {/* Legend */}
-                <g transform="translate(350, 50)">
-                  <line x1="0" y1="0" x2="20" y2="0" stroke="#8b5cf6" strokeWidth="3"/>
-                  <text x="25" y="5" fontSize="10" fill="#64748b">User Engagement</text>
-                  <line x1="0" y1="15" x2="20" y2="15" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
-                  <text x="25" y="20" fontSize="10" fill="#64748b">Crime Patterns</text>
-                </g>
-              </svg>
-            </div>
-          </div>
-        </div>
-        
-        {/* Correlation Analysis Section */}
-        <div className="correlation-analysis">
-          <h3>Correlation Analysis</h3>
-          <div className="correlation-metrics">
-            <div className="metric-card">
-              <h4>Engagement-Crime Correlation</h4>
-              <p className="correlation-value">
-                {forecastingData ? 
-                  `${((1 - (userEngagementData.reduce((sum, item) => sum + item.crimeCount, 0) / userEngagementData.length / 20)) * 100).toFixed(1)}%` 
-                  : '75.2%'
-                }
-              </p>
-              <p className="metric-description">Inverse correlation between crime and engagement</p>
-            </div>
-            <div className="metric-card">
-              <h4>Peak Engagement Period</h4>
-              <p className="correlation-value">
-                {userEngagementData.reduce((max, item) => item.engagement > max.engagement ? item : max, userEngagementData[0]).month}
-              </p>
-              <p className="metric-description">Month with highest user engagement</p>
-            </div>
-            <div className="metric-card">
-              <h4>Crime Impact Score</h4>
-              <p className="correlation-value">
-                {forecastingData ? 
-                  `${(userEngagementData.reduce((sum, item) => sum + item.crimeCount, 0) / userEngagementData.length).toFixed(1)}`
-                  : '12.3'
-                }
-              </p>
-              <p className="metric-description">Average crime incidents per month</p>
-            </div>
-          </div>
-        </div>
 
         {/* Forecasting Section */}
         <div className="forecasting-section">
@@ -968,103 +1153,6 @@ function Analytics() {
           )}
         </div>
         
-        {/* Enhanced System Metrics */}
-        <div className="enhanced-metrics-section">
-          <h3>System Performance Metrics</h3>
-          <div className="metrics-grid">
-            <div className="metric-card enhanced">
-              <div className="metric-icon">👥</div>
-              <div className="metric-content">
-                <h4>Total Users</h4>
-                <p className="metric-value">{systemMetrics.totalUsers}</p>
-                <p className="metric-subtitle">Active: {systemMetrics.activeUsers}</p>
-              </div>
-            </div>
-            <div className="metric-card enhanced">
-              <div className="metric-icon">📊</div>
-              <div className="metric-content">
-                <h4>Total Reports</h4>
-                <p className="metric-value">{systemMetrics.totalReports}</p>
-                <p className="metric-subtitle">Resolved: {systemMetrics.resolvedReports}</p>
-              </div>
-            </div>
-            <div className="metric-card enhanced">
-              <div className="metric-icon">⏱️</div>
-              <div className="metric-content">
-                <h4>Avg Response Time</h4>
-                <p className="metric-value">{responseMetrics.averageResponseTime}m</p>
-                <p className="metric-subtitle">Target: &lt;15m</p>
-              </div>
-            </div>
-            <div className="metric-card enhanced">
-              <div className="metric-icon">📈</div>
-              <div className="metric-content">
-                <h4>Resolution Rate</h4>
-                <p className="metric-value">{responseMetrics.resolutionRate}%</p>
-                <p className="metric-subtitle">Dispatch: {responseMetrics.dispatchEfficiency}%</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Real-time System Status */}
-        <div className="real-time-status-section">
-          <h3>Real-time System Status</h3>
-          <div className="status-grid">
-            <div className="status-card">
-              <div className="status-header">
-                <h4>System Health</h4>
-                <span className={`status-indicator ${realTimeData.systemHealth.toLowerCase()}`}>
-                  {realTimeData.systemHealth}
-                </span>
-              </div>
-              <div className="status-metrics">
-                <div className="status-item">
-                  <span className="status-label">Active Calls:</span>
-                  <span className="status-value">{realTimeData.activeCalls}</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-label">Emergency Alerts:</span>
-                  <span className="status-value">{realTimeData.emergencyAlerts}</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-label">Active Dispatches:</span>
-                  <span className="status-value">{realTimeData.activeDispatches}</span>
-                </div>
-              </div>
-            </div>
-            <div className="status-card">
-              <div className="status-header">
-                <h4>User Engagement</h4>
-                <span className="engagement-score">
-                  {userEngagement.length > 0 
-                    ? Math.round(userEngagement.reduce((sum, user) => sum + user.engagementRate, 0) / userEngagement.length)
-                    : 0}%
-                </span>
-              </div>
-              <div className="engagement-breakdown">
-                <div className="engagement-item">
-                  <span className="engagement-label">High Engagement:</span>
-                  <span className="engagement-value">
-                    {userEngagement.filter(u => u.engagementRate > 80).length}
-                  </span>
-                </div>
-                <div className="engagement-item">
-                  <span className="engagement-label">Medium Engagement:</span>
-                  <span className="engagement-value">
-                    {userEngagement.filter(u => u.engagementRate >= 50 && u.engagementRate <= 80).length}
-                  </span>
-                </div>
-                <div className="engagement-item">
-                  <span className="engagement-label">Low Engagement:</span>
-                  <span className="engagement-value">
-                    {userEngagement.filter(u => u.engagementRate < 50).length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Crime Trends Analysis */}
         <div className="crime-trends-section">
@@ -1178,52 +1266,296 @@ function Analytics() {
           </div>
         </div>
 
-        {/* Performance Metrics */}
-        <div className="performance-metrics-section">
-          <h3>Performance Metrics</h3>
-          <div className="performance-grid">
-            <div className="performance-card">
-              <h4>System Uptime</h4>
-              <div className="uptime-display">
-                <span className="uptime-value">{systemMetrics.systemUptime}%</span>
-                <div className="uptime-bar">
-                  <div 
-                    className="uptime-fill" 
-                    style={{ width: `${systemMetrics.systemUptime}%` }}
-                  ></div>
+
+         {/* Interactive Crime Heatmap */}
+         <div className="heatmap-section">
+           <div className="heatmap-header">
+            
+            {/* Loading state for heatmap */}
+            {loading && (
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '1rem', 
+                background: '#f0f9ff', 
+                borderRadius: '8px', 
+                border: '1px solid #0ea5e9',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  border: '2px solid #0ea5e9', 
+                  borderTop: '2px solid transparent', 
+                  borderRadius: '50%', 
+                  animation: 'spin 1s linear infinite' 
+                }}></div>
+                <span style={{ color: '#0c4a6e', fontWeight: '600' }}>Loading heatmap data...</span>
+              </div>
+            )}
+            
+            {/* Error state for heatmap */}
+            {error && (
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '1rem', 
+                background: '#fef2f2', 
+                borderRadius: '8px', 
+                border: '1px solid #ef4444',
+                color: '#dc2626'
+              }}>
+                <strong>Error:</strong> {error}
+              </div>
+            )}
+            
+            {/* Real-time Data Status */}
+            <div style={{ 
+              marginTop: '1.5rem', 
+              padding: '1.5rem', 
+              background: '#f8fafc', 
+              borderRadius: '12px', 
+              border: '1px solid #e5e7eb',
+              fontSize: '0.9rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <strong style={{ color: '#1e293b', fontSize: '1rem' }}>📊 Real-time Crime Data</strong>
+                {lastUpdate && (
+                  <small style={{ color: '#6b7280' }}>
+                    Last updated: {lastUpdate.toLocaleTimeString()}
+                  </small>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <strong style={{ color: '#1e293b' }}>Total Reports:</strong> {reports.length}
+                </div>
+                <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <strong style={{ color: '#1e293b' }}>Filtered Reports:</strong> {getFilteredReports().length}
+                </div>
+                <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <strong style={{ color: '#1e293b' }}>Heatmap Points:</strong> {createHeatmapData().length}
+                </div>
+                <div style={{ padding: '0.75rem', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <strong style={{ color: '#1e293b' }}>With Location:</strong> {reports.filter(r => r.location?.latitude && r.location?.longitude).length}
                 </div>
               </div>
             </div>
-            <div className="performance-card">
-              <h4>Response Efficiency</h4>
-              <div className="efficiency-metrics">
-                <div className="efficiency-item">
-                  <span className="efficiency-label">Avg Response Time:</span>
-                  <span className="efficiency-value">{responseMetrics.averageResponseTime}m</span>
-                </div>
-                <div className="efficiency-item">
-                  <span className="efficiency-label">Dispatch Rate:</span>
-                  <span className="efficiency-value">{responseMetrics.dispatchEfficiency}%</span>
+          </div>
+
+          <div className="heatmap-content">
+            <div className="map-container">
+              <div className="map-wrapper">
+                <MapContainer
+                  center={[14.6042, 120.9822]} // Manila, Philippines
+                  zoom={11}
+                  style={{ height: '500px', width: '100%' }}
+                  className="dark-map"
+                >
+                  <TileLayer
+                    attribution='Leaflet | © OpenStreetMap contributors'
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    subdomains="abcd"
+                    maxZoom={20}
+                  />
+                  
+                  {/* Heatmap Layer */}
+                  <HeatmapLayer 
+                    data={createHeatmapData().length > 0 ? createHeatmapData() : generateTestHeatmapData()} 
+                    intensity={intensity} 
+                    radius={radius} 
+                  />
+                  
+                  {/* Police Station Markers */}
+                  {showPoliceStations && policeStations.map((station) => (
+                    <Marker
+                      key={station.id}
+                      position={station.position}
+                      icon={L.divIcon({
+                        className: 'police-station-marker',
+                        html: `
+                          <div style="
+                            position: relative;
+                            width: 24px;
+                            height: 32px;
+                          ">
+                            <div style="
+                              position: absolute;
+                              top: 0;
+                              left: 50%;
+                              transform: translateX(-50%);
+                              width: 20px;
+                              height: 20px;
+                              background: #dc2626;
+                              border: 2px solid #ffffff;
+                              border-radius: 50%;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                            ">
+                              <div style="
+                                width: 8px;
+                                height: 8px;
+                                background: #ffffff;
+                                border-radius: 50%;
+                              "></div>
+                            </div>
+                            <div style="
+                              position: absolute;
+                              top: 18px;
+                              left: 50%;
+                              transform: translateX(-50%);
+                              width: 0;
+                              height: 0;
+                              border-left: 6px solid transparent;
+                              border-right: 6px solid transparent;
+                              border-top: 12px solid #dc2626;
+                              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                            "></div>
+                          </div>
+                        `,
+                        iconSize: [24, 32],
+                        iconAnchor: [12, 32]
+                      })}
+                    >
+                      <Popup>
+                        <div style={{ padding: '8px', minWidth: '200px' }}>
+                          <h4 style={{ margin: '0 0 8px 0', color: '#dc2626', fontSize: '14px' }}>
+                            {station.name}
+                          </h4>
+                          <p style={{ margin: '4px 0', fontSize: '12px', color: '#374151' }}>
+                            {station.address}
+                          </p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
+                <div className="map-legend">
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)' }}>Crime Density</h4>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#0000ff' }}></div>
+                    <span className="legend-label">Low</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#00ffff' }}></div>
+                    <span className="legend-label">Medium-Low</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#00ff00' }}></div>
+                    <span className="legend-label">Medium</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#ffff00' }}></div>
+                    <span className="legend-label">Medium-High</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#ff8000' }}></div>
+                    <span className="legend-label">High</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color" style={{ backgroundColor: '#ff0000' }}></div>
+                    <span className="legend-label">Very High</span>
+                  </div>
+                  
+                  
+                  {showPoliceStations && (
+                    <div className="legend-item">
+                      <div className="legend-color" style={{ 
+                        background: '#dc2626', 
+                        clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+                        width: '12px',
+                        height: '12px'
+                      }}></div>
+                      <span className="legend-label">Police Station</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="performance-card">
-              <h4>User Satisfaction</h4>
-              <div className="satisfaction-metrics">
-                <div className="satisfaction-item">
-                  <span className="satisfaction-label">Resolution Rate:</span>
-                  <span className="satisfaction-value">{responseMetrics.resolutionRate}%</span>
-                </div>
-                <div className="satisfaction-item">
-                  <span className="satisfaction-label">Engagement Score:</span>
-                  <span className="satisfaction-value">
-                    {userEngagement.length > 0 
-                      ? Math.round(userEngagement.reduce((sum, user) => sum + user.engagementRate, 0) / userEngagement.length)
-                      : 0}%
-                  </span>
+
+            <div className="heatmap-controls">
+              <div className="control-section">
+                <h3>Filter Options</h3>
+                 <div className="filter-group">
+                   <label>Crime Type:</label>
+                   <select 
+                     value={selectedCrimeTypeHeatmap} 
+                     onChange={(e) => setSelectedCrimeTypeHeatmap(e.target.value)}
+                   >
+                     <option value="">All Types</option>
+                     <option value="Theft">Theft</option>
+                     <option value="Assault">Assault</option>
+                     <option value="Vandalism">Vandalism</option>
+                     <option value="Fraud">Fraud</option>
+                     <option value="Harassment">Harassment</option>
+                     <option value="Breaking and Entering">Breaking and Entering</option>
+                     <option value="Vehicle Theft">Vehicle Theft</option>
+                     <option value="Drug-related">Drug-related</option>
+                     <option value="Domestic Violence">Domestic Violence</option>
+                     <option value="Other">Other</option>
+                   </select>
+                 </div>
+                <div className="filter-group">
+                  <label>Time Range:</label>
+                  <select 
+                    value={timeRange} 
+                    onChange={(e) => setTimeRange(e.target.value)}
+                  >
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="all">All time</option>
+                  </select>
                 </div>
               </div>
-            </div>
+
+              <div className="control-section">
+                <h3>Heatmap Settings</h3>
+                <div className="setting-group">
+                  <label>Intensity: {intensity}/10</label>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    value={intensity}
+                    onChange={(e) => setIntensity(parseInt(e.target.value))}
+                  />
+                  <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                    Controls heatmap intensity
+                  </small>
+                </div>
+                 <div className="setting-group">
+                   <label>Radius: {radius}px</label>
+                   <input 
+                     type="range" 
+                     min="10" 
+                     max="100" 
+                     value={radius}
+                     onChange={(e) => setRadius(parseInt(e.target.value))}
+                   />
+                   <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                     Controls heatmap radius & blur
+                   </small>
+                 </div>
+                 <div className="setting-group">
+                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                     <input 
+                       type="checkbox" 
+                       checked={showPoliceStations}
+                       onChange={(e) => setShowPoliceStations(e.target.checked)}
+                       style={{ margin: 0 }}
+                     />
+                     Show Police Stations
+                   </label>
+                   <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                     Display police station location on map
+                   </small>
+                 </div>
+               </div>
+
+             </div>
           </div>
         </div>
       </div>
