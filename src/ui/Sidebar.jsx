@@ -10,8 +10,8 @@ function LinkItem({ to, label, children }) {
       className={({ isActive }) => 
         `flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all duration-200 ${
           isActive 
-            ? 'bg-black text-white shadow-md' 
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            ? 'bg-white text-black shadow-lg' 
+            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
         }`
       }
     >
@@ -51,8 +51,8 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 w-72 h-full bg-white border-r border-gray-200 shadow-md z-50 lg:translate-x-0 -translate-x-full transition-transform duration-300">
-      <div className="p-6 border-b border-gray-200">
+    <aside className="fixed left-0 top-0 w-72 h-full bg-black border-r border-gray-800 shadow-md z-50 lg:translate-x-0 -translate-x-full transition-transform duration-300">
+      <div className="p-6 border-b border-gray-800">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100">
             <img 
@@ -62,8 +62,8 @@ export default function Sidebar() {
             />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-black">E-Responde</h2>
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Admin Dashboard</p>
+            <h2 className="text-xl font-bold text-white">E-Responde</h2>
+            <p className="text-xs text-gray-400 uppercase tracking-wider">Admin Dashboard</p>
           </div>
         </div>
       </div>
@@ -77,16 +77,10 @@ export default function Sidebar() {
             <rect x="3" y="14" width="7" height="7"/>
           </svg>
         </LinkItem>
-        <LinkItem to="/analytics" label="Analytics">
+        <LinkItem to="/analytics" label="Analytics & Heatmap">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 3v18h18"/>
             <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
-          </svg>
-        </LinkItem>
-        <LinkItem to="/heatmap" label="Crime Heatmap">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
-            <circle cx="12" cy="10" r="3"/>
           </svg>
         </LinkItem>
         <LinkItem to="/dispatch" label="Dispatch Center">
@@ -129,8 +123,8 @@ export default function Sidebar() {
           <button 
             className={`flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
               isAccountsPage 
-                ? 'bg-black text-white shadow-md' 
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                ? 'bg-white text-black shadow-lg' 
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
             }`}
             onClick={handleAccountManagementClick}
           >
@@ -159,8 +153,8 @@ export default function Sidebar() {
               <button 
                 className={`flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   accountType === 'civilian' 
-                    ? 'bg-gray-200 text-gray-900' 
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'bg-white text-black' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`}
                 onClick={() => handleAccountTypeSelect('civilian')}
               >
@@ -173,8 +167,8 @@ export default function Sidebar() {
               <button 
                 className={`flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   accountType === 'police' 
-                    ? 'bg-gray-200 text-gray-900' 
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'bg-white text-black' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`}
                 onClick={() => handleAccountTypeSelect('police')}
               >
@@ -188,7 +182,7 @@ export default function Sidebar() {
         </div>
       </nav>
       
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-800">
         <button 
           onClick={handleLogout}
           className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-status-danger text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-all duration-200 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"

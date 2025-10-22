@@ -422,17 +422,19 @@ function SOSManagement() {
 
   const getStatusColor = (status) => {
     try {
-      if (!status) return '#6b7280'
+      if (!status) return '#fef3c7'
       switch (status.toLowerCase()) {
-        case 'active': return '#ef4444'
-        case 'pending': return '#f59e0b'
-        case 'resolved': return '#10b981'
-        case 'completed': return '#6b7280'
-        default: return '#6b7280'
+        case 'active': return '#fef3c7'
+        case 'pending': return '#fef3c7'
+        case 'received': return '#fef3c7'
+        case 'in progress': return '#fed7aa'
+        case 'resolved': return '#d1fae5'
+        case 'completed': return '#d1fae5'
+        default: return '#fef3c7'
       }
     } catch (error) {
       console.warn('Error getting status color:', error)
-      return '#6b7280'
+      return '#fef3c7'
     }
   }
 

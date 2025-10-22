@@ -441,12 +441,18 @@ function Dispatch() {
     }
   }
 
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'pending': return '#f59e0b'
-      case 'received': return '#3b82f6'
-      case 'in progress': return '#8b5cf6'
-      default: return '#6b7280'
+  const getStatusClass = (status) => {
+    const normalizedStatus = status.toLowerCase();
+    if (normalizedStatus === "resolved" || normalizedStatus === "case resolved") {
+      return "status-resolved";
+    } else if (normalizedStatus === "in progress") {
+      return "status-in-progress";
+    } else if (normalizedStatus === "received") {
+      return "status-received";
+    } else if (normalizedStatus === "dispatched") {
+      return "status-dispatched";
+    } else {
+      return "status-pending";
     }
   }
 
@@ -468,51 +474,62 @@ function Dispatch() {
 
   return (
     <div className="dispatch-container">
-      <div className="dispatch-header">
-        <h1>Dispatch Center</h1>
-        <p>Manage and dispatch emergency response units to crime reports</p>
-      </div>
-
-      <div className="dispatch-stats">
-        <div className="stat-card">
-          <div className="stat-icon pending">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12,6 12,12 16,14"></polyline>
-            </svg>
+      <section className="mb-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-black mb-2" style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: '800', 
+            color: '#1e293b', 
+            letterSpacing: '-0.025em',
+            textTransform: 'uppercase'
+          }}>Dispatch Center</h1>
+          <p className="text-gray-600 text-lg">Manage and dispatch emergency response units to crime reports</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="card">
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{reports.length}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>Pending Dispatch</div>
           </div>
-          <div className="stat-info">
-            <span className="stat-number">{reports.length}</span>
-            <span className="stat-label">Pending Dispatch</span>
+          <div className="card">
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{reports.filter(r => r.priority === 'high').length}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>High Priority</div>
+          </div>
+          <div className="card">
+            <div className="text-3xl font-bold text-black mb-2" style={{ 
+              fontSize: '3rem', 
+              fontWeight: '800', 
+              color: '#1e293b', 
+              letterSpacing: '-0.025em'
+            }}>{reports.filter(r => r.status?.toLowerCase() === 'in progress').length}</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: '700', 
+              color: '#64748b', 
+              letterSpacing: '0.05em'
+            }}>In Progress</div>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon high-priority">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-            </svg>
-          </div>
-          <div className="stat-info">
-            <span className="stat-number">
-              {reports.filter(r => r.priority === 'high').length}
-            </span>
-            <span className="stat-label">High Priority</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon active">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-            </svg>
-          </div>
-          <div className="stat-info">
-            <span className="stat-number">
-              {reports.filter(r => r.status?.toLowerCase() === 'in progress').length}
-            </span>
-            <span className="stat-label">In Progress</span>
-          </div>
-        </div>
-      </div>
+      </section>
 
       <div className="dispatch-content">
         <div className="reports-section">
@@ -532,10 +549,7 @@ function Dispatch() {
                   <div className="report-header">
                     <div className="report-type">
                       <span className="type-badge">{report.crimeType || 'Unknown'}</span>
-                      <span 
-                        className="status-badge" 
-                        style={{ backgroundColor: getStatusColor(report.status) }}
-                      >
+                      <span className={`status-badge ${getStatusClass(report.status)}`}>
                         {report.status}
                       </span>
                     </div>

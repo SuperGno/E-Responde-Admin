@@ -1,0 +1,301 @@
+/* Header Styles */
+.header {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+/* Force notification tray styles with highest specificity */
+header .notification-tray,
+div[class*="notification-tray"],
+.notification-tray {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  width: 400px !important;
+  max-height: 500px !important;
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  z-index: 50 !important;
+  margin-top: 8px !important;
+  overflow: hidden !important;
+}
+
+
+.notification-header {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: #f9fafb !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.notification-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.unread-badge {
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.notification-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  position: relative !important;
+}
+
+.notification-item:hover {
+  background: #f9fafb;
+}
+
+.notification-item.unread {
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+}
+
+.notification-icon {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.notification-icon.crime-report {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.notification-icon.sos-alert {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.notification-icon.police-dispatch {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.notification-icon.police-availability {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.notification-content {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.notification-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.notification-message {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.notification-report-details {
+  margin-bottom: 8px;
+}
+
+.report-type-badge {
+  display: inline-block;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.report-location {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.report-status {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.status-pending {
+  color: #d97706;
+  font-weight: 500;
+}
+
+.status-resolved {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.notification-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-action-btn.view-btn {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.notification-action-btn.view-btn:hover {
+  background: #bfdbfe;
+}
+
+.notification-action-btn.mark-read-btn {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.notification-action-btn.mark-read-btn:hover {
+  background: #bbf7d0;
+}
+
+.notification-priority-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  background: #ef4444;
+  border-radius: 0 4px 4px 0;
+}
+
+.notification-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  text-align: center;
+}
+
+.view-all-btn {
+  background: #111827;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.view-all-btn:hover {
+  background: #374151;
+}
+
+/* Loading and Empty States */
+.notification-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #d1d5db;
+  border-top: 2px solid #4b5563;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: #6b7280;
+}
+
+.notification-empty svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.notification-empty p {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .notification-tray {
+    width: 320px;
+    right: -10px;
+  }
+  
+  .notification-item {
+    padding: 12px 16px;
+  }
+  
+  .notification-header {
+    padding: 12px 16px;
+  }
+}
