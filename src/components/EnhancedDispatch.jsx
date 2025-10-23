@@ -7,6 +7,7 @@ function EnhancedDispatch() {
   const [reports, setReports] = useState([])
   const [patrolUnits, setPatrolUnits] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   // Dispatch-related state variables removed - implement your own state management
   const [realTimeStats, setRealTimeStats] = useState({
     totalReports: 0,
@@ -41,6 +42,7 @@ function EnhancedDispatch() {
   const fetchData = async () => {
     try {
       setLoading(true)
+      setError('')
       
       // Fetch reports, patrol units, and SOS alerts in parallel
       const [reportsSnapshot, unitsSnapshot, sosSnapshot] = await Promise.all([
@@ -56,7 +58,6 @@ function EnhancedDispatch() {
       if (reportsSnapshot.exists()) {
         const reportsData = reportsSnapshot.val()
         const totalReportsInDB = Object.keys(reportsData).length
-        console.log('Total reports in database:', totalReportsInDB)
         
         const currentDate = new Date()
         const oct20 = new Date(currentDate.getFullYear(), 9, 20) // October 20
@@ -87,21 +88,15 @@ function EnhancedDispatch() {
           })
         })
         
-        console.log('Reports after filtering:', reportsList.length)
-        console.log('Reports marked for deletion:', reportsToDelete.length)
-      } else {
-        console.log('No reports found in database')
       }
       
       // Delete old/invalid reports
       if (reportsToDelete.length > 0) {
-        console.log(`Cleaning up ${reportsToDelete.length} old/invalid reports...`)
         const deletePromises = reportsToDelete.map(reportId => {
           const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${reportId}`)
           return update(reportRef, null) // Set to null to delete
         })
         await Promise.all(deletePromises)
-        console.log(`Successfully deleted ${reportsToDelete.length} old/invalid reports`)
       }
       
       // Clean up SOS alerts
@@ -171,6 +166,7 @@ function EnhancedDispatch() {
       
     } catch (err) {
       console.error('Error fetching data:', err)
+      setError('Failed to load dispatch data. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -241,11 +237,6 @@ function EnhancedDispatch() {
       unit.status === 'Available'
     ).length
     
-    console.log('Available Units Calculation:', {
-      totalUnits: unitsList.length,
-      availableUnits: availableUnits,
-      unitStatuses: unitsList.map(unit => ({ id: unit.id, name: `${unit.firstName} ${unit.lastName}`, status: unit.status }))
-    })
     
     // Calculate average response time
     const dispatchedReports = reportsList.filter(report => 
@@ -327,6 +318,12 @@ function EnhancedDispatch() {
 
   // Handle dispatch button click to show report information
   const handleDispatchClick = (report) => {
+    // Prevent dispatch for resolved cases
+    if (report.status?.toLowerCase() === 'case resolved' || report.status?.toLowerCase() === 'resolved') {
+      alert('This case has been resolved by the police and cannot be dispatched.')
+      return
+    }
+    
     setSelectedReport(report)
     setShowReportModal(true)
   }
@@ -367,12 +364,10 @@ function EnhancedDispatch() {
 
       const selectedUnit = patrolUnits.find(unit => unit.id === selectedOfficer)
       if (!selectedUnit) {
-        console.error('Selected officer not found:', selectedOfficer)
         alert('Selected officer not found. Please refresh and try again.')
         return
       }
 
-      console.log('Selected unit found:', selectedUnit)
 
       // Create dispatch information
       const dispatchInfo = {
@@ -634,14 +629,21 @@ function EnhancedDispatch() {
   }
 
   const filteredReports = reports.filter(report => {
-    const statusMatch = filterStatus === 'all' || report.status?.toLowerCase() === filterStatus
-    return statusMatch
+    if (filterStatus === 'all') return true
+    
+    const reportStatus = report.status?.toLowerCase()
+    
+    // Handle case resolved with multiple possible values
+    if (filterStatus === 'resolved') {
+      return reportStatus === 'resolved' || 
+             reportStatus === 'case resolved' || 
+             reportStatus === 'case-resolved' ||
+             reportStatus === 'case_resolved'
+    }
+    
+    return reportStatus === filterStatus
   })
 
-  // Debug logging for reports
-  console.log('Total reports:', reports.length)
-  console.log('Filtered reports:', filteredReports.length)
-  console.log('Filter status:', filterStatus)
 
   if (loading) {
     return (
@@ -730,7 +732,7 @@ function EnhancedDispatch() {
             <option value="received">Received</option>
             <option value="in progress">In Progress</option>
             <option value="dispatched">Dispatched</option>
-            <option value="resolved">Resolved</option>
+            <option value="resolved">Case Resolved</option>
           </select>
         </div>
         
@@ -754,6 +756,7 @@ function EnhancedDispatch() {
            Cleanup Data
          </button>
       </div>
+
 
       {/* Reports Grid */}
       <div className="reports-section">
@@ -805,27 +808,31 @@ function EnhancedDispatch() {
                     </p>
                   </div>
                   
-                  {report.dispatchInfo && (
-                    <div className="dispatch-info">
-                      <strong>Dispatched to:</strong> {report.dispatchInfo.unitName}
-                      <br />
-                      <strong>Dispatched at:</strong> {formatDate(report.dispatchInfo.dispatchedAt)}
-                      <br />
-                      <strong>Priority:</strong> {report.dispatchInfo.priority}
-                    </div>
-                  )}
                 </div>
 
                 <div className="report-actions">
-                  <button 
-                    className="dispatch-btn"
-                    onClick={() => handleDispatchClick(report)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-                    </svg>
-                    Dispatch Unit
-                  </button>
+                  {report.status?.toLowerCase() === 'case resolved' || report.status?.toLowerCase() === 'resolved' ? (
+                    <button 
+                      className="dispatch-btn dispatch-btn-disabled"
+                      disabled
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 12l2 2 4-4"></path>
+                        <circle cx="12" cy="12" r="10"></circle>
+                      </svg>
+                      Case Resolved
+                    </button>
+                  ) : (
+                    <button 
+                      className="dispatch-btn"
+                      onClick={() => handleDispatchClick(report)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                      </svg>
+                      Dispatch Unit
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -915,34 +922,10 @@ function EnhancedDispatch() {
                     )}
                   </div>
                   
-                  {selectedReport.dispatchInfo && (
-                    <div className="detail-section">
-                      <h4>Dispatch Information</h4>
-                      <div className="detail-item">
-                        <strong>Dispatched to:</strong> {selectedReport.dispatchInfo.unitName}
-                      </div>
-                      <div className="detail-item">
-                        <strong>Dispatched at:</strong> {formatDate(selectedReport.dispatchInfo.dispatchedAt)}
-                      </div>
-                      <div className="detail-item">
-                        <strong>Priority:</strong> {selectedReport.dispatchInfo.priority}
-                      </div>
-                      {selectedReport.dispatchInfo.estimatedTime && (
-                        <div className="detail-item">
-                          <strong>Estimated Response Time:</strong> {selectedReport.dispatchInfo.estimatedTime}
-                        </div>
-                      )}
-                      {selectedReport.dispatchInfo.notes && (
-                        <div className="detail-item">
-                          <strong>Dispatch Notes:</strong> {selectedReport.dispatchInfo.notes}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
               
-              {/* Police Officer Selection */}
+              {/* Police Officer Selection - Only show if not already dispatched */}
               {!selectedReport.dispatchInfo && (
                 <div className="officer-selection-section">
                   <h4>Assign Police Officer</h4>
@@ -969,6 +952,18 @@ function EnhancedDispatch() {
                         No available officers at the moment
                       </p>
                     )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Show dispatch info if already dispatched */}
+              {selectedReport.dispatchInfo && (
+                <div className="dispatch-info-section">
+                  <h4>Dispatch Information</h4>
+                  <div className="dispatch-info-content">
+                    <p><strong>Status:</strong> Already Dispatched</p>
+                    <p><strong>Officer:</strong> {selectedReport.dispatchInfo.unitName || 'Unknown'}</p>
+                    <p><strong>Dispatched At:</strong> {selectedReport.dispatchInfo.dispatchedAt ? new Date(selectedReport.dispatchInfo.dispatchedAt).toLocaleString() : 'Unknown'}</p>
                   </div>
                 </div>
               )}
