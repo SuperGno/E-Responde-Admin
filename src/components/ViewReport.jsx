@@ -810,7 +810,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
                 <p>{dispatchSuccess.error}</p>
               ) : (
                 <div>
-                  <h4>✅ Officer Dispatched Successfully!</h4>
+                  <h4>Officer Dispatched Successfully!</h4>
                   <p><strong>Officer:</strong> {dispatchSuccess.policeName}</p>
                   <p><strong>Dispatch ID:</strong> {dispatchSuccess.dispatchId}</p>
                   <p><strong>ETA:</strong> {dispatchSuccess.eta.min}-{dispatchSuccess.eta.max} minutes</p>

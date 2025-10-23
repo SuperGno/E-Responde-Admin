@@ -1,5 +1,5 @@
 .notification-management-container {
-  padding: 2rem;
+  padding: 1rem;
   background: var(--bg-primary);
   min-height: 100vh;
   color: var(--text-primary);
@@ -9,8 +9,8 @@
   background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   border: 2px solid var(--border-primary);
   border-radius: 16px;
-  padding: 2.5rem;
-  margin-bottom: 3rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
   box-shadow: 0 8px 25px var(--shadow-primary);
   position: relative;
   overflow: hidden;
@@ -27,18 +27,20 @@
 }
 
 .notification-header h1 {
-  font-size: 2.5rem;
+  font-size: 2.75rem; /* 44px - Enhanced for police admin authority */
   font-weight: 800;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  color: #111827;
+  margin-bottom: 16px;
   letter-spacing: -0.025em;
+  line-height: 1.1;
 }
 
 .notification-header p {
-  font-size: 1.125rem;
-  color: var(--text-secondary);
+  font-size: 1.5rem; /* 24px - Enhanced for police admin */
+  color: #4b5563;
   font-weight: 500;
   margin-bottom: 2rem;
+  line-height: 1.5;
 }
 
 .header-actions {
@@ -69,73 +71,82 @@
   border-color: var(--accent-primary);
 }
 
-/* Notification Statistics */
+/* Enhanced Notification Statistics */
 .notification-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: stretch;
 }
 
 .stat-card {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  border: 2px solid var(--border-primary);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 8px 25px var(--shadow-primary);
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: none;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 1.5rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  height: 140px;
+  transition: all 0.2s ease;
   position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 35px var(--shadow-primary);
-  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .stat-icon {
-  font-size: 2.5rem;
-  width: 70px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  border: 2px solid var(--border-primary);
-  border-radius: 16px;
-  color: var(--text-primary);
-  box-shadow: 0 4px 12px var(--shadow-primary);
+  font-size: 2rem;
+  margin-bottom: 12px;
+  display: block;
+  color: #64748b;
 }
 
 .stat-content h3 {
-  font-size: 0.95rem;
+  font-size: 0.875rem; /* 14px - Reasonable card titles */
   font-weight: 700;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+  color: #1f2937;
+  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1.2;
 }
 
 .stat-number {
-  font-size: 2.5rem;
+  font-size: 2.25rem; /* 36px - Reduced from 48px */
   font-weight: 800;
-  color: var(--text-primary);
+  color: #1f2937;
   letter-spacing: -0.025em;
+  margin: 0 0 8px 0;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem; /* 12px - Smaller but readable */
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
   margin: 0;
+}
+
+@media (max-width: 1200px) {
+  .notification-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .notification-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Filters Section */

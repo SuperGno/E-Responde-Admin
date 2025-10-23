@@ -7,11 +7,214 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
   }
   
   body {
-    @apply bg-white text-black font-normal leading-relaxed antialiased;
+    @apply bg-gray-50 text-gray-900 font-normal leading-relaxed antialiased;
     overflow-x: hidden;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #1f2937;
+    background-color: #f8fafc;
+  }
+  
+  /* Comprehensive Typography Scale */
+  /* Display Text - Large headings for hero sections */
+  .text-display-2xl {
+    font-size: 4.5rem; /* 72px */
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-display-xl {
+    font-size: 3.75rem; /* 60px */
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-display-lg {
+    font-size: 3rem; /* 48px */
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+  
+  /* Headings - Balanced for Professional Use */
+  h1, .text-4xl {
+    font-size: 2.25rem; /* 36px - Reasonable for main titles */
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    color: #111827;
+    margin-bottom: 0.75rem;
+  }
+  
+  h2, .text-3xl {
+    font-size: 1.875rem; /* 30px - Good for section headers */
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.025em;
+    color: #111827;
+    margin-bottom: 0.75rem;
+  }
+  
+  h3, .text-2xl {
+    font-size: 1.5rem; /* 24px - Subsection headers */
+    font-weight: 700;
+    line-height: 1.4;
+    color: #111827;
+    margin-bottom: 0.5rem;
+  }
+  
+  h4, .text-xl {
+    font-size: 1.25rem; /* 20px - Component headers */
+    font-weight: 600;
+    line-height: 1.4;
+    color: #111827;
+    margin-bottom: 0.5rem;
+  }
+  
+  h5, .text-lg {
+    font-size: 1.125rem; /* 18px - Small headers */
+    font-weight: 600;
+    line-height: 1.4;
+    color: #111827;
+    margin-bottom: 0.5rem;
+  }
+  
+  h6, .text-base {
+    font-size: 1rem; /* 16px - Base text size */
+    font-weight: 600;
+    line-height: 1.5;
+    color: #111827;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Body Text - Balanced for Professional Use */
+  p, .text-body {
+    font-size: 1rem; /* 16px - Standard readable size */
+    line-height: 1.6;
+    color: #374151;
+    margin-bottom: 1rem;
+    font-weight: 400;
+  }
+  
+  .text-body-lg {
+    font-size: 1.125rem; /* 18px - Slightly larger for important content */
+    line-height: 1.6;
+    color: #374151;
+    font-weight: 500;
+  }
+  
+  .text-body-sm {
+    font-size: 0.875rem; /* 14px - Smaller but readable */
+    line-height: 1.5;
+    color: #4b5563;
+    font-weight: 500;
+  }
+  
+  /* Small Text - Professional Size */
+  small, .text-sm {
+    font-size: 0.875rem; /* 14px - Standard small text */
+    line-height: 1.5;
+    color: #4b5563;
+    font-weight: 500;
+  }
+  
+  .text-xs {
+    font-size: 0.75rem; /* 12px - Extra small text */
+    line-height: 1.4;
+    color: #6b7280;
+    font-weight: 600;
+  }
+  
+  /* Emphasis */
+  strong, .font-semibold {
+    font-weight: 600;
+    color: #111827;
+  }
+  
+  .font-bold {
+    font-weight: 700;
+  }
+  
+  .font-extrabold {
+    font-weight: 800;
+  }
+  
+  /* Caption and Label Text - Enhanced for Police Admin */
+  .text-caption {
+    font-size: 0.875rem; /* 14px - Larger for formal presentation */
+    line-height: 1.4;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .text-label {
+    font-size: 1rem; /* 16px - Much larger for better visibility */
+    line-height: 1.4;
+    color: #374151;
+    font-weight: 700;
+  }
+  
+  /* Police Admin Specific Typography */
+  .stat-label {
+    font-size: 1rem; /* 16px - Enhanced for statistics */
+    font-weight: 700;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+  }
+  
+  .stat-number {
+    font-size: 2.5rem; /* 40px - Large and prominent */
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+  
+  .table-header {
+    font-size: 1rem; /* 16px - Enhanced table headers */
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+  }
+  
+  .table-data {
+    font-size: 1rem; /* 16px - Larger table data */
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1.5;
+  }
+  
+  /* Responsive Font Sizes */
+  @media (max-width: 768px) {
+    .text-display-2xl { font-size: 3rem; } /* 48px */
+    .text-display-xl { font-size: 2.5rem; } /* 40px */
+    .text-display-lg { font-size: 2rem; } /* 32px */
+    h1, .text-4xl { font-size: 1.875rem; } /* 30px */
+    h2, .text-3xl { font-size: 1.5rem; } /* 24px */
+    h3, .text-2xl { font-size: 1.25rem; } /* 20px */
+    .text-body-lg { font-size: 1rem; } /* 16px */
+  }
+  
+  @media (max-width: 480px) {
+    .text-display-2xl { font-size: 2.5rem; } /* 40px */
+    .text-display-xl { font-size: 2rem; } /* 32px */
+    .text-display-lg { font-size: 1.75rem; } /* 28px */
+    h1, .text-4xl { font-size: 1.5rem; } /* 24px */
+    h2, .text-3xl { font-size: 1.25rem; } /* 20px */
+    h3, .text-2xl { font-size: 1.125rem; } /* 18px */
   }
   
   #root {
@@ -47,13 +250,104 @@
     @apply bg-red-600 text-white border-red-600 hover:bg-red-700 hover:border-red-700 focus:ring-red-400;
   }
   
-  /* Card styles */
+  /* Clean Modern Card Styles */
   .card {
-    @apply bg-white border border-gray-200 rounded-2xl p-6 shadow-sm transition-all duration-200;
+    @apply bg-white rounded-xl p-6 transition-all duration-200;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border: none;
   }
   
   .card:hover {
-    @apply shadow-md border-gray-300;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+  }
+  
+  /* Enhanced Statistics Card Styling */
+  .stat-card {
+    @apply bg-white rounded-xl text-center transition-all duration-200;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border: none;
+    height: 160px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  
+  .stat-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+  }
+  
+  .stat-title {
+    font-size: 0.875rem; /* 14px - More reasonable size */
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+  }
+  
+  .stat-number {
+    font-size: 2.25rem; /* 36px - Reduced from 48px */
+    font-weight: 800;
+    color: #1f2937;
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -0.025em;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem; /* 12px - Smaller but still readable */
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+  }
+  
+  /* Grid Layout for Cards */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+    align-items: stretch;
+  }
+  
+  .stats-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-bottom: 40px;
+    align-items: stretch;
+  }
+  
+  .stats-grid-6 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 40px;
+    align-items: stretch;
+  }
+  
+  @media (max-width: 1200px) {
+    .stats-grid-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .stats-grid-6 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .stats-grid-4,
+    .stats-grid-6 {
+      grid-template-columns: 1fr;
+    }
   }
   
   /* Status badges */

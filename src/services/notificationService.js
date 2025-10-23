@@ -38,10 +38,10 @@ class NotificationService {
     let lastNotificationTime = 0
     const COOLDOWN_PERIOD = 5000 // 5 seconds cooldown to prevent spam
     
-    console.log('🔔 Setting up notification listener for civilian crime reports...')
+    console.log('Setting up notification listener for civilian crime reports...')
     
     const unsubscribe = onValue(reportsRef, (snapshot) => {
-      console.log('🔔 Notification listener triggered:', snapshot.exists())
+      console.log('Notification listener triggered:', snapshot.exists())
       
       if (snapshot.exists()) {
         const reports = snapshot.val()
@@ -110,7 +110,7 @@ class NotificationService {
           lastNotificationTime = now
         }
       } else {
-        console.log('🔔 No reports found in database')
+        console.log('No reports found in database')
       }
     })
     
@@ -332,7 +332,7 @@ class NotificationService {
   // Debug function to check database structure
   async debugDatabaseStructure() {
     try {
-      console.log('🔍 Debugging database structure...')
+      console.log('Debugging database structure...')
       
       const paths = [
         'civilian/civilian crime reports', // Main path used by Dashboard
@@ -510,7 +510,7 @@ class NotificationService {
   // Trigger notifications for existing reports (for testing)
   async triggerNotificationsForExistingReports() {
     try {
-      console.log('🔔 Triggering notifications for existing reports...')
+      console.log('Triggering notifications for existing reports...')
       
       const reportsRef = ref(realtimeDb, 'civilian/civilian crime reports')
       const snapshot = await get(reportsRef)
@@ -530,7 +530,7 @@ class NotificationService {
           return reportTime > oneHourAgo
         })
         
-        console.log('🔔 Found', recentReports.length, 'recent reports to notify about')
+        console.log('Found', recentReports.length, 'recent reports to notify about')
         
         if (recentReports.length > 0) {
           // Send individual notification for each report

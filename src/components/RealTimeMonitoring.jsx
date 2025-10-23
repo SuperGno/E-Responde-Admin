@@ -294,106 +294,11 @@ function RealTimeMonitoring() {
 
   return (
     <div className="real-time-monitoring-container">
-      <div className="monitoring-header">
-        <h1>Real-Time System Monitoring</h1>
-        <p>Live monitoring of system activity, users, and emergency situations</p>
-        
-        <div className="monitoring-controls">
-          <label className="auto-refresh-toggle">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
-            Auto-refresh ({refreshInterval / 1000}s)
-          </label>
-          
-          <select
-            value={refreshInterval}
-            onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            className="refresh-interval-select"
-          >
-            <option value={2000}>2 seconds</option>
-            <option value={5000}>5 seconds</option>
-            <option value={10000}>10 seconds</option>
-            <option value={30000}>30 seconds</option>
-          </select>
-          
-          <button onClick={fetchSystemData} className="manual-refresh-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="23,4 23,10 17,10"></polyline>
-              <polyline points="1,20 1,14 7,14"></polyline>
-              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-            </svg>
-            Refresh Now
-          </button>
-        </div>
-      </div>
-
-      {/* System Health Overview */}
-      <div className="system-health-section">
-        <h2>System Health Overview</h2>
-        <div className="health-cards">
-          <div className="health-card">
-            <div className="health-icon">📊</div>
-            <div className="health-content">
-              <h3>System Status</h3>
-              <p 
-                className="health-status"
-                style={{ color: getHealthColor(systemStats.systemHealth) }}
-              >
-                {systemStats.systemHealth}
-              </p>
-            </div>
-          </div>
-          
-          <div className="health-card">
-            <div className="health-icon">🔗</div>
-            <div className="health-content">
-              <h3>Database</h3>
-              <p 
-                className="health-status"
-                style={{ color: systemHealth.database === 'Connected' ? '#10b981' : '#ef4444' }}
-              >
-                {systemHealth.database}
-              </p>
-            </div>
-          </div>
-          
-          <div className="health-card">
-            <div className="health-icon">🔔</div>
-            <div className="health-content">
-              <h3>Notifications</h3>
-              <p 
-                className="health-status"
-                style={{ color: systemHealth.notifications === 'Active' ? '#10b981' : '#ef4444' }}
-              >
-                {systemHealth.notifications}
-              </p>
-            </div>
-          </div>
-          
-          <div className="health-card">
-            <div className="health-icon">📍</div>
-            <div className="health-content">
-              <h3>Location Tracking</h3>
-              <p 
-                className="health-status"
-                style={{ color: systemHealth.location === 'Tracking' ? '#10b981' : '#ef4444' }}
-              >
-                {systemHealth.location}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Real-time Statistics */}
+      {/* Live System Statistics */}
+      <h1>Live System Statistics</h1>
       <div className="real-time-stats">
-        <h2>Live System Statistics</h2>
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-icon">👥</div>
             <div className="stat-content">
               <h3>Active Users</h3>
               <p className="stat-number">{systemStats.activeUsers}</p>
@@ -402,7 +307,6 @@ function RealTimeMonitoring() {
           </div>
           
           <div className="stat-card">
-            <div className="stat-icon">📞</div>
             <div className="stat-content">
               <h3>Active Calls</h3>
               <p className="stat-number">{systemStats.activeCalls}</p>
@@ -411,7 +315,6 @@ function RealTimeMonitoring() {
           </div>
           
           <div className="stat-card">
-            <div className="stat-icon">🚨</div>
             <div className="stat-content">
               <h3>Emergency Alerts</h3>
               <p className="stat-number">{systemStats.emergencyAlerts}</p>
@@ -420,7 +323,6 @@ function RealTimeMonitoring() {
           </div>
           
           <div className="stat-card">
-            <div className="stat-icon">🚔</div>
             <div className="stat-content">
               <h3>Active Dispatches</h3>
               <p className="stat-number">{systemStats.activeDispatches}</p>
@@ -522,7 +424,7 @@ function RealTimeMonitoring() {
                 <div className="alert-header">
                   <div className="alert-type">
                     <span className="type-badge">
-                      {alert.type === 'sos_alert' ? '🚨 SOS' : '📱 Notification'}
+                      {alert.type === 'sos_alert' ? 'SOS ALERT' : 'NOTIFICATION'}
                     </span>
                     <span 
                       className="priority-badge"

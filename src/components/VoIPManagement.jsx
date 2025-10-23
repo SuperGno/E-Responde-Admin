@@ -229,18 +229,18 @@ function VoIPManagement() {
 
   const getStatusIcon = (status) => {
     try {
-      if (!status) return '❓'
+      if (!status) return '?'
       switch (status.toLowerCase()) {
-        case 'ringing': return '📞'
-        case 'answered': return '✅'
-        case 'ended': return '📴'
-        case 'missed': return '❌'
-        case 'rejected': return '🚫'
-        default: return '❓'
+        case 'ringing': return 'RING'
+        case 'answered': return 'DONE'
+        case 'ended': return 'END'
+        case 'missed': return 'MISS'
+        case 'rejected': return 'REJECT'
+        default: return '?'
       }
     } catch (error) {
       console.warn('Error getting status icon:', error)
-      return '❓'
+      return '?'
     }
   }
 
@@ -322,7 +322,6 @@ function VoIPManagement() {
       {/* Call Statistics */}
       <div className="call-stats">
         <div className="stat-card">
-          <div className="stat-icon">📞</div>
           <div className="stat-content">
             <h3>Total Calls</h3>
             <p className="stat-number">{callStats.totalCalls}</p>
@@ -330,7 +329,6 @@ function VoIPManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">🟢</div>
           <div className="stat-content">
             <h3>Active Calls</h3>
             <p className="stat-number">{callStats.activeCalls}</p>
@@ -338,7 +336,6 @@ function VoIPManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">✅</div>
           <div className="stat-content">
             <h3>Completed</h3>
             <p className="stat-number">{callStats.completedCalls}</p>
@@ -346,7 +343,6 @@ function VoIPManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">❌</div>
           <div className="stat-content">
             <h3>Missed</h3>
             <p className="stat-number">{callStats.missedCalls}</p>
@@ -354,7 +350,6 @@ function VoIPManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">⏱️</div>
           <div className="stat-content">
             <h3>Avg Duration</h3>
             <p className="stat-number">{formatDuration(callStats.averageDuration)}</p>

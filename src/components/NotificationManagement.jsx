@@ -423,14 +423,14 @@ function NotificationManagement() {
   }
 
   const getTypeIcon = (type) => {
-    if (!type) return '📢'
+    if (!type) return 'NOTIFY'
     switch (type) {
-      case 'sos_alert': return '🚨'
-      case 'dispatch_assignment': return '🚔'
-      case 'crime_report': return '📋'
-      case 'system_alert': return '⚠️'
-      case 'general': return '📢'
-      default: return '📢'
+      case 'sos_alert': return 'ALERT'
+      case 'dispatch_assignment': return 'DISPATCH'
+      case 'crime_report': return 'REPORT'
+      case 'system_alert': return 'WARNING'
+      case 'general': return 'NOTIFY'
+      default: return 'NOTIFY'
     }
   }
 
@@ -498,7 +498,6 @@ function NotificationManagement() {
       {/* Notification Statistics */}
       <div className="notification-stats">
         <div className="stat-card">
-          <div className="stat-icon">📊</div>
           <div className="stat-content">
             <h3>Total Notifications</h3>
             <p className="stat-number">{notificationStats.totalNotifications}</p>
@@ -506,7 +505,6 @@ function NotificationManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">📬</div>
           <div className="stat-content">
             <h3>Unread</h3>
             <p className="stat-number">{notificationStats.unreadNotifications}</p>
@@ -514,7 +512,6 @@ function NotificationManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">📅</div>
           <div className="stat-content">
             <h3>Sent Today</h3>
             <p className="stat-number">{notificationStats.sentToday}</p>
@@ -522,7 +519,6 @@ function NotificationManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">📈</div>
           <div className="stat-content">
             <h3>Delivery Rate</h3>
             <p className="stat-number">{notificationStats.deliveryRate}%</p>

@@ -440,17 +440,17 @@ function SOSManagement() {
 
   const getStatusIcon = (status) => {
     try {
-      if (!status) return '❓'
+      if (!status) return '?'
       switch (status.toLowerCase()) {
-        case 'active': return '🚨'
-        case 'pending': return '⏳'
-        case 'resolved': return '✅'
-        case 'completed': return '📋'
-        default: return '❓'
+        case 'active': return 'ALERT'
+        case 'pending': return 'WAIT'
+        case 'resolved': return 'DONE'
+        case 'completed': return 'DONE'
+        default: return '?'
       }
     } catch (error) {
       console.warn('Error getting status icon:', error)
-      return '❓'
+      return '?'
     }
   }
 
@@ -588,7 +588,6 @@ function SOSManagement() {
       {/* SOS Statistics */}
       <div className="sos-stats">
         <div className="stat-card">
-          <div className="stat-icon">🚨</div>
           <div className="stat-content">
             <h3>Total Alerts</h3>
             <p className="stat-number">{sosStats.totalAlerts}</p>
@@ -596,7 +595,6 @@ function SOSManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">🟢</div>
           <div className="stat-content">
             <h3>Active Alerts</h3>
             <p className="stat-number">{sosStats.activeAlerts}</p>
@@ -604,7 +602,6 @@ function SOSManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">✅</div>
           <div className="stat-content">
             <h3>Resolved</h3>
             <p className="stat-number">{sosStats.resolvedAlerts}</p>
@@ -612,7 +609,6 @@ function SOSManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">⏱️</div>
           <div className="stat-content">
             <h3>Avg Response</h3>
             <p className="stat-number">{formatDuration(sosStats.averageResponseTime)}</p>
@@ -620,7 +616,6 @@ function SOSManagement() {
         </div>
         
         <div className="stat-card">
-          <div className="stat-icon">📅</div>
           <div className="stat-content">
             <h3>Today</h3>
             <p className="stat-number">{sosStats.todayAlerts}</p>
@@ -642,7 +637,7 @@ function SOSManagement() {
       {/* Active Alerts Section */}
       {activeAlerts.length > 0 && (
         <div className="active-alerts-section">
-          <h2>🚨 Active Emergency Alerts</h2>
+          <h2>Active Emergency Alerts</h2>
           <div className="active-alerts-grid">
             {activeAlerts.map((alert) => (
               <div key={alert.id} className="active-alert-card">
@@ -777,7 +772,7 @@ function SOSManagement() {
                     <td className="alert-number">{index + 1}</td>
                     <td className="alert-type">
                       <span className="type-badge">
-                        {alert.type === 'sos_alert' ? '🚨 SOS' : '📱 Notification'}
+                        {alert.type === 'sos_alert' ? 'SOS ALERT' : 'NOTIFICATION'}
                       </span>
                     </td>
                     <td className="alert-user">
