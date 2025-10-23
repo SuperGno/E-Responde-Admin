@@ -48,37 +48,31 @@
   margin-bottom: 0;
 }
 
-.stat-card {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  border: 2px solid var(--border-primary);
-  border-radius: 16px;
-  padding: 2.5rem 2rem;
-  box-shadow: 0 8px 25px var(--shadow-primary);
+.stat-card,
+.card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   min-height: 140px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-}
+/* Removed gradient styling for cleaner look */
 
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 35px var(--shadow-primary);
-  border-color: var(--accent-primary);
+.stat-card:hover,
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #3b82f6;
 }
 
 .stat-icon {
@@ -203,66 +197,51 @@
 
 /* Reports Section */
 .reports-section {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  border: 2px solid var(--border-primary);
-  border-radius: 16px;
-  box-shadow: 0 8px 25px var(--shadow-primary);
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   overflow: hidden;
   position: relative;
+  margin-top: 2rem;
 }
 
-.reports-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-}
+/* Removed gradient styling for cleaner look */
 
 .reports-section h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
   margin: 0;
-  padding: 2rem;
-  border-bottom: 2px solid var(--border-primary);
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
   letter-spacing: -0.025em;
 }
 
 .reports-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 2rem;
-  padding: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
 }
 
 .report-card {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  border: 2px solid var(--border-primary);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 8px 25px var(--shadow-primary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
-.report-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-}
+/* Removed gradient styling for cleaner look */
 
 .report-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 35px var(--shadow-primary);
-  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #3b82f6;
 }
 
 .report-header {
@@ -468,6 +447,17 @@
   overflow-y: auto;
 }
 
+.active-officers-modal {
+  max-width: 800px;
+  width: 95%;
+}
+
+.report-info-modal {
+  max-width: 900px;
+  width: 95%;
+  max-height: 90vh;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -483,7 +473,8 @@
   margin: 0;
 }
 
-.modal-close {
+.modal-close,
+.close-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -493,7 +484,8 @@
   transition: background 0.2s ease;
 }
 
-.modal-close:hover {
+.modal-close:hover,
+.close-btn:hover {
   background: #f1f5f9;
 }
 
@@ -656,15 +648,27 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .enhanced-dispatch-container {
-    padding: 16px;
+    padding: 1rem;
   }
   
   .real-time-stats {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .reports-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .report-card {
+    padding: 1rem;
+  }
+  
+  .card, .stat-card {
+    padding: 1rem;
+    min-height: 120px;
   }
   
   .filters-section {
@@ -1048,4 +1052,349 @@
   .stat-subtitle {
     font-size: 0.7rem;
   }
+}
+
+/* Available Officers Modal Styles */
+.officers-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 1rem 0;
+}
+
+.officer-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.officer-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+/* Active Officers Modal Styles */
+.active-officers-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 1rem 0;
+}
+
+.active-officer-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.active-officer-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+.officer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.officer-name {
+  font-size: 1.125rem;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.officer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.officer-header h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.officer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.detail-row strong {
+  min-width: 80px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.status-available {
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-dispatched {
+  background: #f59e0b;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.no-officers {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+}
+
+.no-officers svg {
+  margin-bottom: 1rem;
+  color: #9ca3af;
+}
+
+.no-officers p {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.no-active-officers {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+}
+
+.no-active-officers svg {
+  margin-bottom: 1rem;
+  color: #9ca3af;
+}
+
+.no-active-officers h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0.5rem 0;
+}
+
+.no-active-officers p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Report Information Modal Styles */
+.report-info-content {
+  padding: 1rem 0;
+}
+
+.report-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.report-type-info {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.report-time-info {
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.report-details-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.detail-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.detail-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-item {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.detail-item strong {
+  color: #1e293b;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.detail-item .description-text {
+  margin: 0.5rem 0 0 0;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-style: italic;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* Officer Selection Styles */
+.officer-selection-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.officer-selection-section h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.officer-dropdown-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.officer-dropdown-container label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.officer-select {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: border-color 0.2s ease;
+}
+
+.officer-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.no-officers-available {
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-style: italic;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+}
+
+.assign-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.assign-btn:hover {
+  background: #059669;
+}
+
+.assign-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Responsive Design for Officer Modals */
+@media (max-width: 768px) {
+  .officer-card,
+  .active-officer-card {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .officer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .detail-row strong {
+    min-width: auto;
+  }
+  
+  .officers-list,
+  .active-officers-list {
+    max-height: 300px;
+  }
+}
+
+/* Enhanced Card Hover Effects */
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.card.cursor-pointer {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.card.cursor-pointer:active {
+  transform: translateY(0);
 }

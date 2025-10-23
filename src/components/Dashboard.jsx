@@ -61,26 +61,26 @@ function Dashboard({ onNavigateToReport }) {
 
   // Filter reports by severity levels
   const immediateSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'immediate' || 
-    submission.type.toLowerCase() === 'emergency sos' // Emergency SOS is always immediate severity
+    (typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'immediate') || 
+    (typeof submission.type === 'string' && submission.type.toLowerCase() === 'emergency sos') // Emergency SOS is always immediate severity
   );
 
   const highSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'high'
+    typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'high'
   );
 
   const moderateSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'moderate'
+    typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'moderate'
   );
 
   const lowSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'low'
+    typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'low'
   );
 
   // Filter severity reports based on active filter
   const filteredImmediateSeverity = activeFilter 
     ? immediateSeverityReports.filter(submission => {
-        const status = submission.status.toLowerCase();
+        const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
             return status === 'pending' || status === 'under review';
@@ -98,7 +98,7 @@ function Dashboard({ onNavigateToReport }) {
 
   const filteredHighSeverity = activeFilter 
     ? highSeverityReports.filter(submission => {
-        const status = submission.status.toLowerCase();
+        const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
             return status === 'pending' || status === 'under review';
@@ -116,7 +116,7 @@ function Dashboard({ onNavigateToReport }) {
 
   const filteredModerateSeverity = activeFilter 
     ? moderateSeverityReports.filter(submission => {
-        const status = submission.status.toLowerCase();
+        const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
             return status === 'pending' || status === 'under review';
@@ -134,7 +134,7 @@ function Dashboard({ onNavigateToReport }) {
 
   const filteredLowSeverity = activeFilter 
     ? lowSeverityReports.filter(submission => {
-        const status = submission.status.toLowerCase();
+        const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
             return status === 'pending' || status === 'under review';
@@ -197,7 +197,7 @@ function Dashboard({ onNavigateToReport }) {
   };
 
   const formatStatus = (status) => {
-    const normalizedStatus = status.toLowerCase();
+    const normalizedStatus = typeof status === 'string' ? status.toLowerCase() : '';
     switch (normalizedStatus) {
       case "in progress":
         return "In Progress";
@@ -214,7 +214,7 @@ function Dashboard({ onNavigateToReport }) {
   };
 
   const isResolved = (status) => {
-    const s = (status || '').toLowerCase();
+    const s = typeof status === 'string' ? status.toLowerCase() : '';
     return s === 'resolved' || s === 'case resolved';
   };
 

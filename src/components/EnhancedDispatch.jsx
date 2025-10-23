@@ -7,16 +7,7 @@ function EnhancedDispatch() {
   const [reports, setReports] = useState([])
   const [patrolUnits, setPatrolUnits] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [selectedReport, setSelectedReport] = useState(null)
-  const [showDispatchModal, setShowDispatchModal] = useState(false)
-  const [dispatchData, setDispatchData] = useState({
-    unit: '',
-    priority: 'medium',
-    notes: '',
-    estimatedTime: ''
-  })
-  const [isDispatching, setIsDispatching] = useState(false)
+  // Dispatch-related state variables removed - implement your own state management
   const [realTimeStats, setRealTimeStats] = useState({
     totalReports: 0,
     activeDispatches: 0,
@@ -25,8 +16,12 @@ function EnhancedDispatch() {
   })
   const [liveTracking, setLiveTracking] = useState({})
   const [filterStatus, setFilterStatus] = useState('all')
-  const [filterPriority, setFilterPriority] = useState('all')
   const [showActiveOfficersModal, setShowActiveOfficersModal] = useState(false)
+  const [showAvailableOfficersModal, setShowAvailableOfficersModal] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [selectedReport, setSelectedReport] = useState(null)
+  const [selectedOfficer, setSelectedOfficer] = useState('')
+  const [isAssigning, setIsAssigning] = useState(false)
   const [activeDispatches, setActiveDispatches] = useState([])
   const [undispatching, setUndispatching] = useState(false)
 
@@ -46,7 +41,6 @@ function EnhancedDispatch() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      setError('')
       
       // Fetch reports, patrol units, and SOS alerts in parallel
       const [reportsSnapshot, unitsSnapshot, sosSnapshot] = await Promise.all([
@@ -61,6 +55,9 @@ function EnhancedDispatch() {
       
       if (reportsSnapshot.exists()) {
         const reportsData = reportsSnapshot.val()
+        const totalReportsInDB = Object.keys(reportsData).length
+        console.log('Total reports in database:', totalReportsInDB)
+        
         const currentDate = new Date()
         const oct20 = new Date(currentDate.getFullYear(), 9, 20) // October 20
         const oct22 = new Date(currentDate.getFullYear(), 9, 22) // October 22
@@ -89,6 +86,11 @@ function EnhancedDispatch() {
             dispatchedAt: report.dispatchInfo?.dispatchedAt ? new Date(report.dispatchInfo.dispatchedAt) : null
           })
         })
+        
+        console.log('Reports after filtering:', reportsList.length)
+        console.log('Reports marked for deletion:', reportsToDelete.length)
+      } else {
+        console.log('No reports found in database')
       }
       
       // Delete old/invalid reports
@@ -153,7 +155,7 @@ function EnhancedDispatch() {
               latitude: currentLocation.latitude || unit.latitude || 14.5995,
               longitude: currentLocation.longitude || unit.longitude || 120.9842,
               lastLocationUpdate: currentLocation.lastUpdated || null,
-              status: unit.isActive !== false ? 'Available' : 'Unavailable'
+              status: unit.status || (unit.isActive !== false ? 'Available' : 'Unavailable')
             })
           }
         })
@@ -169,7 +171,6 @@ function EnhancedDispatch() {
       
     } catch (err) {
       console.error('Error fetching data:', err)
-      setError('Failed to load dispatch data. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -216,7 +217,7 @@ function EnhancedDispatch() {
               latitude: currentLocation.latitude || unit.latitude || 14.5995,
               longitude: currentLocation.longitude || unit.longitude || 120.9842,
               lastLocationUpdate: currentLocation.lastUpdated || null,
-              status: unit.isActive !== false ? 'Available' : 'Unavailable'
+              status: unit.status || (unit.isActive !== false ? 'Available' : 'Unavailable')
             })
           }
         })
@@ -234,9 +235,17 @@ function EnhancedDispatch() {
       report.status?.toLowerCase() === 'in progress'
     )
     const activeDispatchesCount = activeDispatchesList.length
+    
+    // Count available units based on their actual status from database
     const availableUnits = unitsList.filter(unit => 
       unit.status === 'Available'
     ).length
+    
+    console.log('Available Units Calculation:', {
+      totalUnits: unitsList.length,
+      availableUnits: availableUnits,
+      unitStatuses: unitsList.map(unit => ({ id: unit.id, name: `${unit.firstName} ${unit.lastName}`, status: unit.status }))
+    })
     
     // Calculate average response time
     const dispatchedReports = reportsList.filter(report => 
@@ -316,114 +325,175 @@ function EnhancedDispatch() {
     })
   }
 
-  const handleDispatchReport = (report) => {
+  // Handle dispatch button click to show report information
+  const handleDispatchClick = (report) => {
     setSelectedReport(report)
-    setShowDispatchModal(true)
-    
-    // Sort patrol units by distance to crime location
-    if (report.location?.latitude && report.location?.longitude) {
-      const crimeLat = parseFloat(report.location.latitude)
-      const crimeLon = parseFloat(report.location.longitude)
-      const sortedUnits = sortPatrolUnitsByDistance(patrolUnits, crimeLat, crimeLon)
-      setPatrolUnits(sortedUnits)
-    }
-    
-    setDispatchData({
-      unit: '',
-      priority: 'medium',
-      notes: '',
-      estimatedTime: ''
-    })
+    setShowReportModal(true)
   }
 
-  const handleCloseModal = () => {
-    setShowDispatchModal(false)
+  // Close report modal
+  const handleCloseReportModal = () => {
+    setShowReportModal(false)
     setSelectedReport(null)
-    setDispatchData({
-      unit: '',
-      priority: 'medium',
-      notes: '',
-      estimatedTime: ''
-    })
+    setSelectedOfficer('')
   }
 
-  const handleDispatchSubmit = async () => {
-    if (!selectedReport || !dispatchData.unit) {
-      alert('Please fill in all required fields')
+  // Handle officer assignment and dispatch
+  const handleAssignOfficer = async () => {
+    if (!selectedReport || !selectedOfficer) {
+      alert('Please select an officer to assign')
       return
     }
 
-    if (isDispatching) {
-      alert('Dispatch is already in progress. Please wait...')
+    if (isAssigning) {
+      alert('Assignment is already in progress. Please wait...')
       return
     }
 
-    setIsDispatching(true)
+    setIsAssigning(true)
 
     try {
-      const selectedUnit = patrolUnits.find(unit => unit.id === dispatchData.unit)
+      console.log('Starting dispatch process...', {
+        selectedReport: selectedReport,
+        selectedOfficer: selectedOfficer,
+        patrolUnits: patrolUnits,
+        realtimeDb: realtimeDb
+      })
+
+      // Check if Firebase connection is available
+      if (!realtimeDb) {
+        throw new Error('Firebase Realtime Database connection not available')
+      }
+
+      const selectedUnit = patrolUnits.find(unit => unit.id === selectedOfficer)
       if (!selectedUnit) {
-        alert('Selected police unit not found. Please refresh and try again.')
+        console.error('Selected officer not found:', selectedOfficer)
+        alert('Selected officer not found. Please refresh and try again.')
         return
       }
 
+      console.log('Selected unit found:', selectedUnit)
+
+      // Create dispatch information
       const dispatchInfo = {
-        unit: dispatchData.unit,
+        unit: selectedOfficer,
         unitName: `${selectedUnit.policeRank} ${selectedUnit.firstName} ${selectedUnit.lastName}`,
         unitEmail: selectedUnit.email,
-        priority: dispatchData.priority,
-        notes: dispatchData.notes,
-        estimatedTime: dispatchData.estimatedTime,
         dispatchedAt: new Date().toISOString(),
         dispatchedBy: 'admin@e-responde.com'
       }
 
-      // Update the crime report
-      const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${selectedReport.id}`)
-      await update(reportRef, {
-        status: 'Dispatched',
-        dispatchInfo: dispatchInfo
-      })
-      
-      // Create notification for the dispatched police officer
-      const notificationId = `dispatch_${selectedReport.id}_${Date.now()}`
-      const notificationRef = ref(realtimeDb, `police/notifications/${selectedUnit.id}/${notificationId}`)
-      
-      const notificationData = {
-        id: notificationId,
-        type: 'dispatch_assignment',
-        title: 'New Dispatch Assignment',
-        message: `You have been assigned to respond to a ${selectedReport.crimeType || 'emergency'} report.`,
-        reportId: selectedReport.id,
+      console.log('Dispatch info created:', dispatchInfo)
+
+      // Update the crime report status to Dispatched
+      try {
+        console.log('Updating crime report...', selectedReport.id)
+        const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${selectedReport.id}`)
+        await update(reportRef, {
+          status: 'Dispatched',
+          dispatchInfo: dispatchInfo
+        })
+        console.log('Crime report updated successfully')
+      } catch (error) {
+        console.error('Error updating crime report:', error)
+        throw new Error(`Failed to update crime report: ${error.message}`)
+      }
+
+      // Update the police officer status to Dispatched
+      try {
+        console.log('Updating officer status...', selectedOfficer)
+        const officerRef = ref(realtimeDb, `police/police account/${selectedOfficer}`)
+        await update(officerRef, { status: 'Dispatched' })
+        console.log('Officer status updated successfully')
+      } catch (error) {
+        console.error('Error updating officer status:', error)
+        throw new Error(`Failed to update officer status: ${error.message}`)
+      }
+
+      // Update the officer's current assignment
+      try {
+        console.log('Updating officer current assignment...')
+        const currentAssignmentRef = ref(realtimeDb, `police/police account/${selectedOfficer}/currentAssignment`)
+        const currentAssignmentData = {
+          reportId: selectedReport.id,
+          incidentType: selectedReport.crimeType || 'Emergency',
+          incidentLocation: selectedReport.location?.address || 'Location not available',
+          assignedAt: new Date().toISOString(),
+          description: selectedReport.description || 'No description provided'
+        }
+        await update(currentAssignmentRef, currentAssignmentData)
+        console.log('Officer current assignment updated successfully')
+      } catch (error) {
+        console.error('Error updating officer current assignment:', error)
+        throw new Error(`Failed to update officer current assignment: ${error.message}`)
+      }
+
+      // Create notification for the dispatched officer
+      try {
+        console.log('Creating notification...')
+        const notificationId = `dispatch_${selectedReport.id}_${Date.now()}`
+        const notificationRef = ref(realtimeDb, `police/notifications/${selectedOfficer}/${notificationId}`)
+        
+        const notificationData = {
+          id: notificationId,
+          type: 'dispatch_assignment',
+          title: 'New Dispatch Assignment',
+          message: `You have been assigned to respond to a ${selectedReport.crimeType || 'emergency'} report.`,
+          reportId: selectedReport.id,
         reportDetails: {
           crimeType: selectedReport.crimeType || 'Emergency',
           location: selectedReport.location?.address || 'Location not available',
-          reporterName: selectedReport.reporterName || 'Anonymous',
-          description: selectedReport.description || 'No description provided',
-          priority: dispatchData.priority,
-          estimatedTime: dispatchData.estimatedTime,
-          notes: dispatchData.notes
+          description: selectedReport.description || 'No description provided'
         },
-        dispatchInfo: dispatchInfo,
-        createdAt: new Date().toISOString(),
-        isRead: false,
-        isActive: true
+          dispatchInfo: dispatchInfo,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+          isActive: true
+        }
+
+        await update(notificationRef, notificationData)
+        console.log('Notification created successfully')
+      } catch (error) {
+        console.error('Error creating notification:', error)
+        throw new Error(`Failed to create notification: ${error.message}`)
       }
 
-      await update(notificationRef, notificationData)
+      console.log('Officer dispatched successfully:', {
+        reportId: selectedReport.id,
+        officerId: selectedOfficer,
+        officerName: dispatchInfo.unitName
+      })
 
-      // Update local state
-      setReports(prev => prev.filter(report => report.id !== selectedReport.id))
-      handleCloseModal()
+      alert(`Officer ${dispatchInfo.unitName} has been successfully dispatched!`)
       
-      alert(`Report dispatched successfully! ${selectedUnit.policeRank} ${selectedUnit.firstName} ${selectedUnit.lastName} has been notified.`)
-    } catch (err) {
-      console.error('Error dispatching report:', err)
-      alert('Failed to dispatch report. Please try again.')
+      // Close modal and refresh data
+      handleCloseReportModal()
+      await fetchData()
+
+    } catch (error) {
+      console.error('Error dispatching officer:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      })
+      
+      let errorMessage = 'Failed to dispatch officer. Please try again.'
+      
+      if (error.code === 'PERMISSION_DENIED') {
+        errorMessage = 'Permission denied. Please check your Firebase rules.'
+      } else if (error.code === 'NETWORK_ERROR') {
+        errorMessage = 'Network error. Please check your internet connection.'
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`
+      }
+      
+      alert(errorMessage)
     } finally {
-      setIsDispatching(false)
+      setIsAssigning(false)
     }
   }
+
 
   const formatDate = (date) => {
     if (!date) return 'N/A'
@@ -436,14 +506,6 @@ function EnhancedDispatch() {
     })
   }
 
-  const getPriorityColor = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case 'high': return '#dc2626'
-      case 'medium': return '#d97706'
-      case 'low': return '#16a34a'
-      default: return '#6b7280'
-    }
-  }
 
   const getStatusClass = (status) => {
     const normalizedStatus = status?.toLowerCase();
@@ -573,9 +635,13 @@ function EnhancedDispatch() {
 
   const filteredReports = reports.filter(report => {
     const statusMatch = filterStatus === 'all' || report.status?.toLowerCase() === filterStatus
-    const priorityMatch = filterPriority === 'all' || report.priority?.toLowerCase() === filterPriority
-    return statusMatch && priorityMatch
+    return statusMatch
   })
+
+  // Debug logging for reports
+  console.log('Total reports:', reports.length)
+  console.log('Filtered reports:', filteredReports.length)
+  console.log('Filter status:', filterStatus)
 
   if (loading) {
     return (
@@ -600,14 +666,14 @@ function EnhancedDispatch() {
             textTransform: 'uppercase'
           }}>Dispatch Management</h1>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="card">
             <div className="text-3xl font-bold text-black mb-2" style={{ 
               fontSize: '3rem', 
               fontWeight: '800', 
               color: '#1e293b', 
               letterSpacing: '-0.025em'
-            }}>{realTimeStats.totalReports}</div>
+            }}>{reports.length}</div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
               fontSize: '0.95rem', 
               fontWeight: '700', 
@@ -622,57 +688,33 @@ function EnhancedDispatch() {
               fontWeight: '800', 
               color: '#1e293b', 
               letterSpacing: '-0.025em'
-            }}>{realTimeStats.activeDispatches}</div>
+            }}>{patrolUnits.filter(unit => unit.status === 'Dispatched').length}</div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
               fontSize: '0.95rem', 
               fontWeight: '700', 
               color: '#64748b', 
               letterSpacing: '0.05em'
-            }}>Active Dispatches</div>
+            }}>Dispatched Officers</div>
           </div>
           
-          <div className="card">
+          <div className="card cursor-pointer transition-all duration-200 hover:bg-gray-50" onClick={() => setShowAvailableOfficersModal(true)}>
             <div className="text-3xl font-bold text-black mb-2" style={{ 
               fontSize: '3rem', 
               fontWeight: '800', 
               color: '#1e293b', 
               letterSpacing: '-0.025em'
-            }}>{realTimeStats.availableUnits}</div>
+            }}>{patrolUnits.filter(unit => unit.status === 'Available').length}</div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
               fontSize: '0.95rem', 
               fontWeight: '700', 
               color: '#64748b', 
               letterSpacing: '0.05em'
-            }}>Available Units</div>
+            }}>Available Officers</div>
           </div>
           
-          <div className="card">
-            <div className="text-3xl font-bold text-black mb-2" style={{ 
-              fontSize: '3rem', 
-              fontWeight: '800', 
-              color: '#1e293b', 
-              letterSpacing: '-0.025em'
-            }}>{realTimeStats.averageResponseTime}m</div>
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ 
-              fontSize: '0.95rem', 
-              fontWeight: '700', 
-              color: '#64748b', 
-              letterSpacing: '0.05em'
-            }}>Avg Response Time</div>
-          </div>
         </div>
       </section>
 
-      {error && (
-        <div className="error-message">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-          </svg>
-          {error}
-        </div>
-      )}
 
       {/* Filters */}
       <div className="filters-section">
@@ -692,19 +734,6 @@ function EnhancedDispatch() {
           </select>
         </div>
         
-        <div className="filter-group">
-          <label>Priority Filter:</label>
-          <select 
-            value={filterPriority} 
-            onChange={(e) => setFilterPriority(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Priority</option>
-            <option value="high">High Priority</option>
-            <option value="medium">Medium Priority</option>
-            <option value="low">Low Priority</option>
-          </select>
-        </div>
         
          <button onClick={fetchData} className="refresh-btn">
            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -788,27 +817,15 @@ function EnhancedDispatch() {
                 </div>
 
                 <div className="report-actions">
-                  {!report.dispatchInfo && (
-                    <button 
-                      className="dispatch-btn"
-                      onClick={() => handleDispatchReport(report)}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-                      </svg>
-                      Dispatch Unit
-                    </button>
-                  )}
-                  
-                  {report.dispatchInfo && (
-                    <button className="view-dispatch-btn">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                      View Dispatch
-                    </button>
-                  )}
+                  <button 
+                    className="dispatch-btn"
+                    onClick={() => handleDispatchClick(report)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                    </svg>
+                    Dispatch Unit
+                  </button>
                 </div>
               </div>
             ))}
@@ -816,13 +833,13 @@ function EnhancedDispatch() {
         )}
       </div>
 
-      {/* Dispatch Modal */}
-      {showDispatchModal && selectedReport && (
+      {/* Report Information Modal */}
+      {showReportModal && selectedReport && (
         <div className="modal-overlay">
-          <div className="modal-content dispatch-modal">
+          <div className="modal-content report-info-modal">
             <div className="modal-header">
-              <h3>Dispatch Response Unit</h3>
-              <button className="modal-close" onClick={handleCloseModal}>
+              <h3>Crime Report Information</h3>
+              <button className="close-btn" onClick={handleCloseReportModal}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -831,110 +848,145 @@ function EnhancedDispatch() {
             </div>
             
             <div className="modal-body">
-              <div className="report-summary">
-                <h4>Report Details</h4>
-                <p><strong>Type:</strong> {selectedReport.crimeType}</p>
-                <p><strong>Location:</strong> {selectedReport.location?.address}</p>
-                <p><strong>Reporter:</strong> {selectedReport.reporterName}</p>
-                <p><strong>Priority:</strong> {selectedReport.priority || 'Medium'}</p>
-              </div>
-
-              {/* Proximity Recommendations */}
-              {patrolUnits.length > 0 && patrolUnits[0].distance !== undefined && patrolUnits[0].distance < 999999 && (
-                <div className="proximity-recommendations">
-                  <h4>Recommended Patrol Units (Sorted by Distance)</h4>
-                  <div className="recommendations-list">
-                    {patrolUnits.slice(0, 3).map((unit, index) => (
-                      <div key={unit.id} className="recommendation-item">
-                        <strong>{index + 1}.</strong> {unit.policeRank} {unit.firstName} {unit.lastName} 
-                        <span className={`status-indicator ${unit.status === 'Available' ? 'available' : 'unavailable'}`}>
-                          ({unit.status})
-                        </span>
-                        {' '}- {unit.distance.toFixed(1)} km away
-                        {index === 0 && <span className="nearest-badge"> - NEAREST</span>}
+              <div className="report-info-content">
+                <div className="report-header-info">
+                  <div className="report-type-info">
+                    <span className="type-badge">{selectedReport.crimeType || 'Unknown'}</span>
+                    <span className={`status-badge ${getStatusClass(selectedReport.status)}`}>
+                      {selectedReport.status}
+                    </span>
+                    {selectedReport.priority && (
+                      <span 
+                        className="priority-badge"
+                        style={{ backgroundColor: getPriorityColor(selectedReport.priority) }}
+                      >
+                        {selectedReport.priority.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="report-time-info">
+                    {formatDate(selectedReport.createdAt)}
+                  </div>
+                </div>
+                
+                <div className="report-details-info">
+                  <div className="detail-section">
+                    <h4>Location Information</h4>
+                    <div className="detail-item">
+                      <strong>Address:</strong> {selectedReport.location?.address || 'No location provided'}
+                    </div>
+                    {selectedReport.location?.latitude && selectedReport.location?.longitude && (
+                      <div className="detail-item">
+                        <strong>Coordinates:</strong> 
+                        {selectedReport.location.latitude.toFixed(6)}, {selectedReport.location.longitude.toFixed(6)}
                       </div>
-                    ))}
+                    )}
+                  </div>
+                  
+                  <div className="detail-section">
+                    <h4>Reporter Information</h4>
+                    <div className="detail-item">
+                      <strong>Name:</strong> {selectedReport.reporterName || 'Anonymous'}
+                    </div>
+                    {selectedReport.reporterContact && (
+                      <div className="detail-item">
+                        <strong>Contact:</strong> {selectedReport.reporterContact}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="detail-section">
+                    <h4>Incident Details</h4>
+                    <div className="detail-item">
+                      <strong>Description:</strong>
+                      <p className="description-text">
+                        {selectedReport.description || 'No description provided'}
+                      </p>
+                    </div>
+                    {selectedReport.incidentType && (
+                      <div className="detail-item">
+                        <strong>Incident Type:</strong> {selectedReport.incidentType}
+                      </div>
+                    )}
+                    {selectedReport.severity && (
+                      <div className="detail-item">
+                        <strong>Severity:</strong> {selectedReport.severity}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedReport.dispatchInfo && (
+                    <div className="detail-section">
+                      <h4>Dispatch Information</h4>
+                      <div className="detail-item">
+                        <strong>Dispatched to:</strong> {selectedReport.dispatchInfo.unitName}
+                      </div>
+                      <div className="detail-item">
+                        <strong>Dispatched at:</strong> {formatDate(selectedReport.dispatchInfo.dispatchedAt)}
+                      </div>
+                      <div className="detail-item">
+                        <strong>Priority:</strong> {selectedReport.dispatchInfo.priority}
+                      </div>
+                      {selectedReport.dispatchInfo.estimatedTime && (
+                        <div className="detail-item">
+                          <strong>Estimated Response Time:</strong> {selectedReport.dispatchInfo.estimatedTime}
+                        </div>
+                      )}
+                      {selectedReport.dispatchInfo.notes && (
+                        <div className="detail-item">
+                          <strong>Dispatch Notes:</strong> {selectedReport.dispatchInfo.notes}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Police Officer Selection */}
+              {!selectedReport.dispatchInfo && (
+                <div className="officer-selection-section">
+                  <h4>Assign Police Officer</h4>
+                  <div className="officer-dropdown-container">
+                    <label htmlFor="officer-select">Select Available Officer:</label>
+                    <select
+                      id="officer-select"
+                      value={selectedOfficer}
+                      onChange={(e) => setSelectedOfficer(e.target.value)}
+                      className="officer-select"
+                    >
+                      <option value="">Choose an officer...</option>
+                      {patrolUnits
+                        .filter(unit => unit.status === 'Available')
+                        .map((officer) => (
+                          <option key={officer.id} value={officer.id}>
+                            {officer.policeRank} {officer.firstName} {officer.lastName}
+                            {officer.contactNumber && ` - ${officer.contactNumber}`}
+                          </option>
+                        ))}
+                    </select>
+                    {patrolUnits.filter(unit => unit.status === 'Available').length === 0 && (
+                      <p className="no-officers-available">
+                        No available officers at the moment
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
-
-              <div className="dispatch-form">
-                <div className="form-group">
-                  <label>Response Unit *</label>
-                  {patrolUnits.length > 0 && patrolUnits[0].distance !== undefined && (
-                    <small className="form-help">
-                      Units sorted by proximity to crime location
-                    </small>
-                  )}
-                  <select
-                    value={dispatchData.unit}
-                    onChange={(e) => setDispatchData({...dispatchData, unit: e.target.value})}
-                    required
-                  >
-                    <option value="">Select a patrol unit...</option>
-                    {patrolUnits.map((unit, index) => {
-                      const isNearest = index === 0 && unit.distance !== undefined && unit.distance < 999999
-                      const isAvailable = unit.status === 'Available'
-                      const distanceText = unit.distance !== undefined && unit.distance < 999999 
-                        ? ` (${unit.distance.toFixed(1)} km away)` 
-                        : ' (Location unknown)'
-                      
-                      return (
-                        <option key={unit.id} value={unit.id}>
-                          {isNearest ? '[NEAREST] ' : ''}{unit.policeRank} {unit.firstName} {unit.lastName} - {unit.status}
-                          {distanceText}
-                          {isNearest ? ' - NEAREST' : ''}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Priority Level</label>
-                  <select
-                    value={dispatchData.priority}
-                    onChange={(e) => setDispatchData({...dispatchData, priority: e.target.value})}
-                  >
-                    <option value="low">Low Priority</option>
-                    <option value="medium">Medium Priority</option>
-                    <option value="high">High Priority</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Estimated Response Time</label>
-                  <input
-                    type="text"
-                    value={dispatchData.estimatedTime}
-                    onChange={(e) => setDispatchData({...dispatchData, estimatedTime: e.target.value})}
-                    placeholder="e.g., 15 minutes, 30 minutes"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Dispatch Notes</label>
-                  <textarea
-                    value={dispatchData.notes}
-                    onChange={(e) => setDispatchData({...dispatchData, notes: e.target.value})}
-                    placeholder="Additional instructions or information for the response unit..."
-                    rows="3"
-                  />
-                </div>
-              </div>
             </div>
-
+            
             <div className="modal-actions">
-              <button className="cancel-btn" onClick={handleCloseModal}>
-                Cancel
+              <button className="cancel-btn" onClick={handleCloseReportModal}>
+                Close
               </button>
-              <button 
-                className="dispatch-btn"
-                onClick={handleDispatchSubmit}
-                disabled={isDispatching}
-              >
-                {isDispatching ? 'Dispatching...' : 'Dispatch Unit'}
-              </button>
+              {!selectedReport.dispatchInfo && selectedOfficer && (
+                <button 
+                  className="assign-btn" 
+                  onClick={handleAssignOfficer}
+                  disabled={isAssigning}
+                >
+                  {isAssigning ? 'Assigning...' : 'Assign Officer'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -945,8 +997,8 @@ function EnhancedDispatch() {
         <div className="modal-overlay">
           <div className="modal-content active-officers-modal">
             <div className="modal-header">
-              <h3>Active Officers in Dispatch</h3>
-              <button className="modal-close" onClick={() => setShowActiveOfficersModal(false)}>
+              <h3>Dispatched Police Officers</h3>
+              <button className="close-btn" onClick={() => setShowActiveOfficersModal(false)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -955,99 +1007,49 @@ function EnhancedDispatch() {
             </div>
             
             <div className="modal-body">
-              {activeDispatches.length === 0 ? (
+              {patrolUnits.filter(unit => unit.status === 'Dispatched').length === 0 ? (
                 <div className="no-active-officers">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M9 12l2 2 4-4"></path>
                     <circle cx="12" cy="12" r="10"></circle>
                   </svg>
-                  <h4>No Active Dispatches</h4>
-                  <p>There are currently no officers actively dispatched to incidents.</p>
+                  <h4>No Dispatched Officers</h4>
+                  <p>There are currently no officers with "Dispatched" status.</p>
                 </div>
               ) : (
                 <div className="active-officers-list">
-                  {activeDispatches.map((dispatch) => (
-                    <div key={dispatch.id} className="active-officer-card">
+                  {patrolUnits
+                    .filter(unit => unit.status === 'Dispatched')
+                    .map((officer) => (
+                    <div key={officer.id} className="active-officer-card">
                       <div className="officer-info">
                         <div className="officer-header">
-                          <h4>{dispatch.assignedOfficer?.name || 'Unknown Officer'}</h4>
-                          <span className={`status-badge ${getStatusClass(dispatch.status)}`}>
-                            {dispatch.status}
+                          <h4>{officer.policeRank} {officer.firstName} {officer.lastName}</h4>
+                          <span className="status-badge status-dispatched">
+                            Dispatched
                           </span>
                         </div>
                         
                         <div className="officer-details">
                           <div className="detail-row">
-                            <strong>Report ID:</strong> {dispatch.id}
+                            <strong>Officer ID:</strong> {officer.id}
                           </div>
                           <div className="detail-row">
-                            <strong>Crime Type:</strong> {dispatch.crimeType || 'Unknown'}
+                            <strong>Email:</strong> {officer.email}
                           </div>
                           <div className="detail-row">
-                            <strong>Location:</strong> {dispatch.location?.address || 'No location'}
+                            <strong>Contact:</strong> {officer.contactNumber || 'Not available'}
                           </div>
                           <div className="detail-row">
-                            <strong>Reporter:</strong> {dispatch.reporterName || 'Anonymous'}
+                            <strong>Status:</strong> 
+                            <span className="status-badge status-dispatched">Dispatched</span>
                           </div>
-                          {dispatch.assignedOfficer && (
-                            <>
-                              <div className="detail-row">
-                                <strong>Officer Contact:</strong> {dispatch.assignedOfficer.contactNumber || 'Not available'}
-                              </div>
-                              <div className="detail-row">
-                                <strong>Officer Email:</strong> {dispatch.assignedOfficer.email || 'Not available'}
-                              </div>
-                              <div className="detail-row">
-                                <strong>Dispatch Time:</strong> {dispatch.dispatchInfo?.dispatchedAt ? 
-                                  new Date(dispatch.dispatchInfo.dispatchedAt).toLocaleString() : 'Unknown'
-                                }
-                              </div>
-                              {dispatch.dispatchInfo?.priority && (
-                                <div className="detail-row">
-                                  <strong>Priority:</strong> 
-                                  <span className={`priority-badge priority-${dispatch.dispatchInfo.priority.toLowerCase()}`}>
-                                    {dispatch.dispatchInfo.priority}
-                                  </span>
-                                </div>
-                              )}
-                              {dispatch.dispatchInfo?.estimatedTime && (
-                                <div className="detail-row">
-                                  <strong>Estimated Response Time:</strong> {dispatch.dispatchInfo.estimatedTime}
-                                </div>
-                              )}
-                              {dispatch.dispatchInfo?.notes && (
-                                <div className="detail-row">
-                                  <strong>Dispatch Notes:</strong> {dispatch.dispatchInfo.notes}
-                                </div>
-                              )}
-                            </>
+                          {officer.latitude && officer.longitude && (
+                            <div className="detail-row">
+                              <strong>Location:</strong> 
+                              {officer.latitude.toFixed(4)}, {officer.longitude.toFixed(4)}
+                            </div>
                           )}
-                        </div>
-                        
-                        <div className="officer-actions">
-                          <button 
-                            className="undispatch-btn"
-                            onClick={() => handleUndispatch(dispatch)}
-                            disabled={undispatching}
-                          >
-                            {undispatching ? (
-                              <>
-                                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10"></circle>
-                                  <path d="M12 2a10 10 0 0 1 10 10"></path>
-                                </svg>
-                                Undispatching...
-                              </>
-                            ) : (
-                              <>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M9 12l2 2 4-4"></path>
-                                  <circle cx="12" cy="12" r="10"></circle>
-                                </svg>
-                                Undispatch Officer
-                              </>
-                            )}
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -1064,8 +1066,81 @@ function EnhancedDispatch() {
           </div>
         </div>
       )}
+
+      {/* Available Officers Modal */}
+      {showAvailableOfficersModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Available Police Officers</h3>
+              <button className="close-btn" onClick={() => setShowAvailableOfficersModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="officers-list">
+                {patrolUnits.filter(unit => unit.status === 'Available').length > 0 ? (
+                  patrolUnits
+                    .filter(unit => unit.status === 'Available')
+                    .map((officer, index) => (
+                      <div key={officer.id} className="officer-card">
+                        <div className="officer-info">
+                          <div className="officer-name">
+                            <strong>{officer.policeRank} {officer.firstName} {officer.lastName}</strong>
+                          </div>
+                          <div className="officer-details">
+                            <div className="detail-row">
+                              <strong>Email:</strong> {officer.email}
+                            </div>
+                            {officer.contactNumber && (
+                              <div className="detail-row">
+                                <strong>Contact:</strong> {officer.contactNumber}
+                              </div>
+                            )}
+                            <div className="detail-row">
+                              <strong>Status:</strong> 
+                              <span className="status-badge status-available">Available</span>
+                            </div>
+                            {officer.latitude && officer.longitude && (
+                              <div className="detail-row">
+                                <strong>Location:</strong> 
+                                {officer.latitude.toFixed(4)}, {officer.longitude.toFixed(4)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <div className="no-officers">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <p>No available officers at the moment</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setShowAvailableOfficersModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default EnhancedDispatch
+
+
