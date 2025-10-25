@@ -1398,30 +1398,3 @@
 .card.cursor-pointer:active {
   transform: translateY(0);
 }
-
-/* Dispatch Info Section */
-.dispatch-info-section {
-  margin-top: 24px;
-  padding: 20px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-}
-
-.dispatch-info-section h4 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 16px;
-}
-
-.dispatch-info-content p {
-  margin-bottom: 8px;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.dispatch-info-content strong {
-  color: #1e293b;
-  font-weight: 600;
-}

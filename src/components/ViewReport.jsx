@@ -103,22 +103,101 @@ function ViewReport({ reportId, onBackToDashboard }) {
   }
 
 
+  // Handle when police officer declines an assignment
+  const handleOfficerDecline = async (policeId, policeData) => {
+    try {
+      setDispatching(true)
+      const db = getDatabase(app)
+      
+      console.log('Processing officer decline for:', policeId)
+      
+      // Update officer status back to Available and clear assignment
+      const policeRef = ref(db, `police/police account/${policeId}`)
+      await set(policeRef, {
+        ...policeData,
+        status: 'Available',
+        currentAssignment: null
+      })
+      console.log('Officer status updated to Available')
+
+      // Update report status back to Pending so it can be reassigned
+      const reportRef = ref(db, `civilian/civilian crime reports/${reportId}`)
+      await set(reportRef, {
+        ...reportData,
+        status: 'Pending',
+        dispatchedTo: null,
+        assignmentDeclined: {
+          declinedBy: `${policeData.firstName} ${policeData.lastName}`,
+          declinedAt: new Date().toISOString(),
+          reason: 'Officer declined assignment'
+        }
+      })
+      console.log('Report status updated to Pending')
+
+      // Update dispatch record to show declined status
+      const dispatchRef = ref(db, 'dispatches')
+      const newDispatchRef = push(dispatchRef)
+      await set(newDispatchRef, {
+        dispatchId: newDispatchRef.key,
+        reportId: reportId,
+        policeId: policeId,
+        policeName: `${policeData.firstName} ${policeData.lastName}`,
+        policeRank: policeData.rank || 'Police Officer',
+        policeContact: policeData.contactNumber,
+        incidentType: reportData?.type || 'Unknown',
+        incidentLocation: reportData?.location || 'Unknown',
+        dispatchedAt: new Date().toISOString(),
+        status: 'Declined',
+        declinedAt: new Date().toISOString(),
+        declinedBy: `${policeData.firstName} ${policeData.lastName}`,
+        eta: policeData.eta,
+        distance: policeData.distance,
+        route: policeData.route
+      })
+
+      setDispatchSuccess({
+        policeName: `${policeData.firstName} ${policeData.lastName}`,
+        dispatchId: newDispatchRef.key,
+        eta: policeData.eta,
+        declined: true
+      })
+
+      // Refresh police recommendations to show updated status
+      if (reportData?.coordinates?.latitude && reportData?.coordinates?.longitude) {
+        fetchNearestPolice(
+          parseFloat(reportData.coordinates.latitude),
+          parseFloat(reportData.coordinates.longitude)
+        )
+      }
+
+    } catch (error) {
+      console.error('Error processing officer decline:', error)
+      setDispatchSuccess({
+        error: 'Failed to process officer decline. Please try again.'
+      })
+    } finally {
+      setDispatching(false)
+    }
+  }
+
   // Dispatch police officer to incident
   const dispatchPolice = async (policeId, policeData) => {
     try {
       setDispatching(true)
       const db = getDatabase(app)
       
-      // Update police officer status to "Dispatched"
+      // Keep police officer status as "Available" - will be changed to "Dispatched" after mobile app confirmation
       const policeRef = ref(db, `police/police account/${policeId}`)
       await set(policeRef, {
         ...policeData,
-        status: 'Dispatched',
+        status: 'Available', // Keep as Available until mobile app confirmation
         currentAssignment: {
           reportId: reportId,
           assignedAt: new Date().toISOString(),
           incidentType: reportData?.type || 'Unknown',
-          incidentLocation: reportData?.location || 'Unknown'
+          incidentLocation: reportData?.location || 'Unknown',
+          assignmentStatus: 'Pending Confirmation',
+          requiresMobileConfirmation: true
         }
       })
 
@@ -135,21 +214,23 @@ function ViewReport({ reportId, onBackToDashboard }) {
         incidentType: reportData?.type || 'Unknown',
         incidentLocation: reportData?.location || 'Unknown',
         dispatchedAt: new Date().toISOString(),
-        status: 'Dispatched',
+        status: 'Pending Confirmation',
         eta: policeData.eta,
         distance: policeData.distance,
         route: policeData.route
       })
 
-      // Update report status to "Dispatched"
+      // Update report status to "Assigned" (pending confirmation)
       const reportRef = ref(db, `civilian/civilian crime reports/${reportId}`)
       await set(reportRef, {
         ...reportData,
-        status: 'Dispatched',
+        status: 'Assigned',
         dispatchedTo: {
           policeId: policeId,
           policeName: `${policeData.firstName} ${policeData.lastName}`,
-          dispatchedAt: new Date().toISOString()
+          dispatchedAt: new Date().toISOString(),
+          assignmentStatus: 'Pending Confirmation',
+          requiresMobileConfirmation: true
         }
       })
 
@@ -277,22 +358,59 @@ function ViewReport({ reportId, onBackToDashboard }) {
             email: 'Not provided'
           }
           
-          if (data.reporterUid) {
+          console.log('Report data for reporter info:', {
+            reporterUid: data.reporterUid,
+            reporterName: data.reporterName,
+            userId: data.userId,
+            uid: data.uid
+          })
+          
+          // Try multiple ways to get reporter information
+          if (data.reporterUid || data.userId || data.uid) {
+            const uidToTry = data.reporterUid || data.userId || data.uid
+            console.log('Trying to fetch reporter info for UID:', uidToTry)
+            
             try {
-              const reporterRef = ref(db, `civilian/civilian account/${data.reporterUid}`)
+              const reporterRef = ref(db, `civilian/civilian account/${uidToTry}`)
               const reporterSnapshot = await get(reporterRef)
               
               if (reporterSnapshot.exists()) {
                 const reporterData = reporterSnapshot.val()
+                console.log('Reporter data found:', reporterData)
+                
+                const firstName = reporterData.firstName || ''
+                const lastName = reporterData.lastName || ''
+                const fullName = `${firstName} ${lastName}`.trim()
+                
                 reporterInfo = {
-                  name: `${reporterData.firstName || ''} ${reporterData.lastName || ''}`.trim() || 'Anonymous',
+                  name: fullName || data.reporterName || 'Anonymous',
                   phone: reporterData.contactNumber || 'Not provided',
                   email: reporterData.email || 'Not provided'
+                }
+                
+                console.log('Reporter info set to:', reporterInfo)
+              } else {
+                console.log('No reporter account found for UID:', uidToTry)
+                // Try to use reporterName if available in the report data
+                if (data.reporterName) {
+                  reporterInfo.name = data.reporterName
+                  console.log('Using reporterName from report data:', data.reporterName)
                 }
               }
             } catch (reporterErr) {
               console.error('Error fetching reporter info:', reporterErr)
-              // Keep default values if reporter fetch fails
+              // Try to use reporterName if available in the report data
+              if (data.reporterName) {
+                reporterInfo.name = data.reporterName
+                console.log('Using reporterName from report data after error:', data.reporterName)
+              }
+            }
+          } else {
+            console.log('No reporter UID found, checking for reporterName in report data')
+            // Try to use reporterName if available in the report data
+            if (data.reporterName) {
+              reporterInfo.name = data.reporterName
+              console.log('Using reporterName from report data:', data.reporterName)
             }
           }
           
@@ -329,7 +447,8 @@ function ViewReport({ reportId, onBackToDashboard }) {
             reportedBy: reporterInfo,
             description: data.description || 'No description provided',
             status: data.status || 'Unknown',
-            multimedia: data.multimedia || []
+            multimedia: data.multimedia || [],
+            videos: data.videos || []
           })
 
           // Fetch nearest police officers if coordinates are available
@@ -513,6 +632,58 @@ function ViewReport({ reportId, onBackToDashboard }) {
               To view the image, check the mobile device or contact the reporter.
             </div>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to determine video type and handle display
+  const getVideoDisplayComponent = (videoUrl, index) => {
+    console.log(`Processing video ${index}:`, videoUrl);
+    
+    // Check for Firebase Storage or HTTP URLs
+    if (videoUrl.includes('firebase') || videoUrl.includes('http://') || videoUrl.includes('https://')) {
+      return (
+        <div className="evidence-video">
+          <video 
+            controls
+            preload="metadata"
+            style={{ width: '100%', height: '200px', borderRadius: '8px' }}
+            onError={(e) => {
+              console.error('Video load error:', e.target.src);
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+            onLoadStart={() => {
+              console.log(`Video ${index + 1} started loading`);
+            }}
+          >
+            <source src={videoUrl} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          <div className="evidence-placeholder" style={{ display: 'none' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="23,7 16,12 23,17 23,7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span>Video {index + 1}</span>
+            <small>Failed to load</small>
+          </div>
+        </div>
+      );
+    }
+    
+    // Unknown format
+    return (
+      <div className="evidence-placeholder">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polygon points="23,7 16,12 23,17 23,7"></polygon>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
+        <span>Video {index + 1}</span>
+        <small>Unknown format</small>
+        <div className="file-info">
+          <small>{videoUrl.substring(0, 50)}...</small>
         </div>
       </div>
     );
@@ -750,7 +921,7 @@ function ViewReport({ reportId, onBackToDashboard }) {
           </div>
 
           <div className="report-section">
-            <h2>Evidence Photos</h2>
+            <h2>Evidence Photos & Videos</h2>
             {reportData.multimedia && reportData.multimedia.some(media => 
               media.includes('file://') || media.includes('rn_image_picker') || media.includes('content://')
             ) && (
@@ -766,20 +937,34 @@ function ViewReport({ reportId, onBackToDashboard }) {
               </div>
             )}
             <div className="evidence-grid">
-              {reportData.multimedia && reportData.multimedia.length > 0 ? (
+              {/* Display Photos */}
+              {reportData.multimedia && reportData.multimedia.length > 0 && (
                 reportData.multimedia.map((media, index) => (
-                  <div key={index} className="evidence-item">
+                  <div key={`photo-${index}`} className="evidence-item">
                     {getImageDisplayComponent(media, index)}
                   </div>
                 ))
-              ) : (
+              )}
+              
+              {/* Display Videos */}
+              {reportData.videos && reportData.videos.length > 0 && (
+                reportData.videos.map((videoUrl, index) => (
+                  <div key={`video-${index}`} className="evidence-item">
+                    {getVideoDisplayComponent(videoUrl, index)}
+                  </div>
+                ))
+              )}
+              
+              {/* Show no evidence message if neither photos nor videos exist */}
+              {(!reportData.multimedia || reportData.multimedia.length === 0) && 
+               (!reportData.videos || reportData.videos.length === 0) && (
                 <div className="no-evidence">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
                     <polyline points="21,15 16,10 5,21"></polyline>
                   </svg>
-                  <p>No evidence photos available</p>
+                  <p>No evidence photos or videos available</p>
                 </div>
               )}
             </div>
@@ -805,9 +990,15 @@ function ViewReport({ reportId, onBackToDashboard }) {
           <h2>Response Recommendations</h2>
           
           {dispatchSuccess && (
-            <div className={`dispatch-success ${dispatchSuccess.error ? 'error' : ''}`}>
+            <div className={`dispatch-success ${dispatchSuccess.error ? 'error' : dispatchSuccess.declined ? 'declined' : ''}`}>
               {dispatchSuccess.error ? (
                 <p>{dispatchSuccess.error}</p>
+              ) : dispatchSuccess.declined ? (
+                <div>
+                  <h4>Assignment Declined</h4>
+                  <p><strong>Officer:</strong> {dispatchSuccess.policeName}</p>
+                  <p><strong>Status:</strong> Report is now back to Pending and can be reassigned</p>
+                </div>
               ) : (
                 <div>
                   <h4>Officer Dispatched Successfully!</h4>

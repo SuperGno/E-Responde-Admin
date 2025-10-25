@@ -58,6 +58,7 @@ function EnhancedDispatch() {
       if (reportsSnapshot.exists()) {
         const reportsData = reportsSnapshot.val()
         const totalReportsInDB = Object.keys(reportsData).length
+        console.log('Total reports in database:', totalReportsInDB)
         
         const currentDate = new Date()
         const oct20 = new Date(currentDate.getFullYear(), 9, 20) // October 20
@@ -88,15 +89,21 @@ function EnhancedDispatch() {
           })
         })
         
+        console.log('Reports after filtering:', reportsList.length)
+        console.log('Reports marked for deletion:', reportsToDelete.length)
+      } else {
+        console.log('No reports found in database')
       }
       
       // Delete old/invalid reports
       if (reportsToDelete.length > 0) {
+        console.log(`Cleaning up ${reportsToDelete.length} old/invalid reports...`)
         const deletePromises = reportsToDelete.map(reportId => {
           const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${reportId}`)
           return update(reportRef, null) // Set to null to delete
         })
         await Promise.all(deletePromises)
+        console.log(`Successfully deleted ${reportsToDelete.length} old/invalid reports`)
       }
       
       // Clean up SOS alerts
@@ -237,6 +244,11 @@ function EnhancedDispatch() {
       unit.status === 'Available'
     ).length
     
+    console.log('Available Units Calculation:', {
+      totalUnits: unitsList.length,
+      availableUnits: availableUnits,
+      unitStatuses: unitsList.map(unit => ({ id: unit.id, name: `${unit.firstName} ${unit.lastName}`, status: unit.status }))
+    })
     
     // Calculate average response time
     const dispatchedReports = reportsList.filter(report => 
@@ -318,12 +330,6 @@ function EnhancedDispatch() {
 
   // Handle dispatch button click to show report information
   const handleDispatchClick = (report) => {
-    // Prevent dispatch for resolved cases
-    if (report.status?.toLowerCase() === 'case resolved' || report.status?.toLowerCase() === 'resolved') {
-      alert('This case has been resolved by the police and cannot be dispatched.')
-      return
-    }
-    
     setSelectedReport(report)
     setShowReportModal(true)
   }
@@ -364,10 +370,12 @@ function EnhancedDispatch() {
 
       const selectedUnit = patrolUnits.find(unit => unit.id === selectedOfficer)
       if (!selectedUnit) {
+        console.error('Selected officer not found:', selectedOfficer)
         alert('Selected officer not found. Please refresh and try again.')
         return
       }
 
+      console.log('Selected unit found:', selectedUnit)
 
       // Create dispatch information
       const dispatchInfo = {
@@ -394,15 +402,14 @@ function EnhancedDispatch() {
         throw new Error(`Failed to update crime report: ${error.message}`)
       }
 
-      // Update the police officer status to Dispatched
+      // Keep officer status as "Available" - will be changed to "Dispatched" after mobile app confirmation
       try {
-        console.log('Updating officer status...', selectedOfficer)
-        const officerRef = ref(realtimeDb, `police/police account/${selectedOfficer}`)
-        await update(officerRef, { status: 'Dispatched' })
-        console.log('Officer status updated successfully')
+        console.log('Officer status remains Available until mobile app confirmation...', selectedOfficer)
+        // Don't update officer status here - let mobile app handle the confirmation
+        console.log('Officer status will be updated to Dispatched after mobile app confirmation')
       } catch (error) {
-        console.error('Error updating officer status:', error)
-        throw new Error(`Failed to update officer status: ${error.message}`)
+        console.error('Error in officer status handling:', error)
+        throw new Error(`Failed to handle officer status: ${error.message}`)
       }
 
       // Update the officer's current assignment
@@ -414,7 +421,9 @@ function EnhancedDispatch() {
           incidentType: selectedReport.crimeType || 'Emergency',
           incidentLocation: selectedReport.location?.address || 'Location not available',
           assignedAt: new Date().toISOString(),
-          description: selectedReport.description || 'No description provided'
+          description: selectedReport.description || 'No description provided',
+          assignmentStatus: 'Pending Confirmation',
+          requiresMobileConfirmation: true
         }
         await update(currentAssignmentRef, currentAssignmentData)
         console.log('Officer current assignment updated successfully')
@@ -432,8 +441,8 @@ function EnhancedDispatch() {
         const notificationData = {
           id: notificationId,
           type: 'dispatch_assignment',
-          title: 'New Dispatch Assignment',
-          message: `You have been assigned to respond to a ${selectedReport.crimeType || 'emergency'} report.`,
+          title: 'New Dispatch Assignment - Confirmation Required',
+          message: `You have been assigned to respond to a ${selectedReport.crimeType || 'emergency'} report. Please confirm your acceptance in the mobile app.`,
           reportId: selectedReport.id,
         reportDetails: {
           crimeType: selectedReport.crimeType || 'Emergency',
@@ -443,7 +452,9 @@ function EnhancedDispatch() {
           dispatchInfo: dispatchInfo,
           createdAt: new Date().toISOString(),
           isRead: false,
-          isActive: true
+          isActive: true,
+          requiresConfirmation: true,
+          assignmentStatus: 'Pending Confirmation'
         }
 
         await update(notificationRef, notificationData)
@@ -459,7 +470,7 @@ function EnhancedDispatch() {
         officerName: dispatchInfo.unitName
       })
 
-      alert(`Officer ${dispatchInfo.unitName} has been successfully dispatched!`)
+      alert(`Officer ${dispatchInfo.unitName} has been assigned to the incident. They will receive a notification and must confirm the assignment in their mobile app.`)
       
       // Close modal and refresh data
       handleCloseReportModal()
@@ -534,6 +545,96 @@ function EnhancedDispatch() {
       alert('Error during cleanup. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle when police officer declines an assignment
+  const handleOfficerDecline = async (dispatch) => {
+    console.log('Officer decline triggered for:', dispatch)
+    
+    if (!dispatch.assignedOfficer) {
+      alert('No officer information available for this dispatch')
+      return
+    }
+
+    if (undispatching) {
+      alert('Processing is already in progress. Please wait...')
+      return
+    }
+
+    setUndispatching(true)
+    console.log('Processing officer decline...')
+
+    try {
+      console.log('Updating officer status after decline...')
+      // Update officer status back to Available and clear assignment
+      const officerRef = ref(realtimeDb, `police/police account/${dispatch.assignedOfficer.id}`)
+      await update(officerRef, {
+        status: 'Available',
+        currentAssignment: null
+      })
+      console.log('Officer status updated successfully')
+
+      console.log('Updating report status back to Pending...')
+      // Update report status back to Pending so it can be reassigned
+      const reportRef = ref(realtimeDb, `civilian/civilian crime reports/${dispatch.id}`)
+      await update(reportRef, {
+        status: 'Pending',
+        dispatchInfo: null,
+        assignmentDeclined: {
+          declinedBy: dispatch.assignedOfficer.name,
+          declinedAt: new Date().toISOString(),
+          reason: 'Officer declined assignment'
+        }
+      })
+      console.log('Report status updated successfully')
+
+      // Update dispatch record to show declined status
+      const dispatchRef = ref(realtimeDb, `dispatches/${dispatch.dispatchId}`)
+      await update(dispatchRef, {
+        status: 'Declined',
+        declinedAt: new Date().toISOString(),
+        declinedBy: dispatch.assignedOfficer.name
+      })
+
+      // Create notification for admin about the decline
+      const adminNotificationId = `decline_${dispatch.id}_${Date.now()}`
+      const adminNotificationRef = ref(realtimeDb, `admin/notifications/${adminNotificationId}`)
+      
+      const adminNotificationData = {
+        id: adminNotificationId,
+        type: 'assignment_declined',
+        title: 'Assignment Declined',
+        message: `Officer ${dispatch.assignedOfficer.name} has declined the assignment for ${dispatch.crimeType || 'emergency'} report. The report is now back to Pending status and can be reassigned.`,
+        reportId: dispatch.id,
+        reportDetails: {
+          crimeType: dispatch.crimeType || 'Emergency',
+          location: dispatch.location?.address || 'Location not available',
+          reporterName: dispatch.reporterName || 'Anonymous',
+          description: dispatch.description || 'No description provided'
+        },
+        declinedOfficer: {
+          id: dispatch.assignedOfficer.id,
+          name: dispatch.assignedOfficer.name,
+          email: dispatch.assignedOfficer.email
+        },
+        createdAt: new Date().toISOString(),
+        isRead: false,
+        isActive: true
+      }
+
+      await update(adminNotificationRef, adminNotificationData)
+
+      alert(`Officer ${dispatch.assignedOfficer.name} has declined the assignment. The report is now back to Pending status and can be reassigned to another officer.`)
+      
+      // Refresh data to show updated status
+      await fetchData()
+
+    } catch (error) {
+      console.error('Error processing officer decline:', error)
+      alert('Error processing officer decline. Please try again.')
+    } finally {
+      setUndispatching(false)
     }
   }
 
@@ -629,21 +730,37 @@ function EnhancedDispatch() {
   }
 
   const filteredReports = reports.filter(report => {
-    if (filterStatus === 'all') return true
-    
-    const reportStatus = report.status?.toLowerCase()
-    
-    // Handle case resolved with multiple possible values
-    if (filterStatus === 'resolved') {
-      return reportStatus === 'resolved' || 
-             reportStatus === 'case resolved' || 
-             reportStatus === 'case-resolved' ||
-             reportStatus === 'case_resolved'
+    if (filterStatus === 'all') {
+      return true // Show all reports when "All Status" is selected
     }
     
-    return reportStatus === filterStatus
+    const reportStatus = report.status?.toLowerCase() || ''
+    const filterValue = filterStatus.toLowerCase()
+    
+    // Handle different status variations
+    if (filterValue === 'assigned') {
+      return reportStatus === 'assigned'
+    } else if (filterValue === 'pending') {
+      return reportStatus === 'pending' || reportStatus === 'under review'
+    } else if (filterValue === 'dispatched') {
+      return reportStatus === 'dispatched'
+    } else if (filterValue === 'received') {
+      return reportStatus === 'received'
+    } else if (filterValue === 'in progress') {
+      return reportStatus === 'in progress'
+    } else if (filterValue === 'resolved') {
+      return reportStatus === 'resolved' || reportStatus === 'case resolved'
+    }
+    
+    return reportStatus === filterValue
   })
 
+  // Debug logging for reports
+  console.log('Total reports:', reports.length)
+  console.log('Filtered reports:', filteredReports.length)
+  console.log('Filter status:', filterStatus)
+  console.log('Report statuses:', reports.map(r => ({ id: r.id, status: r.status, crimeType: r.crimeType })))
+  console.log('Filtered report statuses:', filteredReports.map(r => ({ id: r.id, status: r.status, crimeType: r.crimeType })))
 
   if (loading) {
     return (
@@ -717,6 +834,16 @@ function EnhancedDispatch() {
         </div>
       </section>
 
+      {error && (
+        <div className="error-message">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="filters-section">
@@ -729,10 +856,11 @@ function EnhancedDispatch() {
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
+            <option value="assigned">Assigned</option>
             <option value="received">Received</option>
             <option value="in progress">In Progress</option>
             <option value="dispatched">Dispatched</option>
-            <option value="resolved">Case Resolved</option>
+            <option value="resolved">Resolved</option>
           </select>
         </div>
         
@@ -756,7 +884,6 @@ function EnhancedDispatch() {
            Cleanup Data
          </button>
       </div>
-
 
       {/* Reports Grid */}
       <div className="reports-section">
@@ -808,31 +935,27 @@ function EnhancedDispatch() {
                     </p>
                   </div>
                   
+                  {report.dispatchInfo && (
+                    <div className="dispatch-info">
+                      <strong>Dispatched to:</strong> {report.dispatchInfo.unitName}
+                      <br />
+                      <strong>Dispatched at:</strong> {formatDate(report.dispatchInfo.dispatchedAt)}
+                      <br />
+                      <strong>Priority:</strong> {report.dispatchInfo.priority}
+                    </div>
+                  )}
                 </div>
 
                 <div className="report-actions">
-                  {report.status?.toLowerCase() === 'case resolved' || report.status?.toLowerCase() === 'resolved' ? (
-                    <button 
-                      className="dispatch-btn dispatch-btn-disabled"
-                      disabled
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 12l2 2 4-4"></path>
-                        <circle cx="12" cy="12" r="10"></circle>
-                      </svg>
-                      Case Resolved
-                    </button>
-                  ) : (
-                    <button 
-                      className="dispatch-btn"
-                      onClick={() => handleDispatchClick(report)}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-                      </svg>
-                      Dispatch Unit
-                    </button>
-                  )}
+                  <button 
+                    className="dispatch-btn"
+                    onClick={() => handleDispatchClick(report)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                    </svg>
+                    Dispatch Unit
+                  </button>
                 </div>
               </div>
             ))}
@@ -922,10 +1045,34 @@ function EnhancedDispatch() {
                     )}
                   </div>
                   
+                  {selectedReport.dispatchInfo && (
+                    <div className="detail-section">
+                      <h4>Dispatch Information</h4>
+                      <div className="detail-item">
+                        <strong>Dispatched to:</strong> {selectedReport.dispatchInfo.unitName}
+                      </div>
+                      <div className="detail-item">
+                        <strong>Dispatched at:</strong> {formatDate(selectedReport.dispatchInfo.dispatchedAt)}
+                      </div>
+                      <div className="detail-item">
+                        <strong>Priority:</strong> {selectedReport.dispatchInfo.priority}
+                      </div>
+                      {selectedReport.dispatchInfo.estimatedTime && (
+                        <div className="detail-item">
+                          <strong>Estimated Response Time:</strong> {selectedReport.dispatchInfo.estimatedTime}
+                        </div>
+                      )}
+                      {selectedReport.dispatchInfo.notes && (
+                        <div className="detail-item">
+                          <strong>Dispatch Notes:</strong> {selectedReport.dispatchInfo.notes}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
-              {/* Police Officer Selection - Only show if not already dispatched */}
+              {/* Police Officer Selection */}
               {!selectedReport.dispatchInfo && (
                 <div className="officer-selection-section">
                   <h4>Assign Police Officer</h4>
@@ -952,18 +1099,6 @@ function EnhancedDispatch() {
                         No available officers at the moment
                       </p>
                     )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Show dispatch info if already dispatched */}
-              {selectedReport.dispatchInfo && (
-                <div className="dispatch-info-section">
-                  <h4>Dispatch Information</h4>
-                  <div className="dispatch-info-content">
-                    <p><strong>Status:</strong> Already Dispatched</p>
-                    <p><strong>Officer:</strong> {selectedReport.dispatchInfo.unitName || 'Unknown'}</p>
-                    <p><strong>Dispatched At:</strong> {selectedReport.dispatchInfo.dispatchedAt ? new Date(selectedReport.dispatchInfo.dispatchedAt).toLocaleString() : 'Unknown'}</p>
                   </div>
                 </div>
               )}

@@ -83,7 +83,7 @@ function Dashboard({ onNavigateToReport }) {
         const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
-            return status === 'pending' || status === 'under review';
+            return status === 'pending' || status === 'under review' || status === 'assigned';
           case 'received':
             return status === 'received';
           case 'in-progress':
@@ -101,7 +101,7 @@ function Dashboard({ onNavigateToReport }) {
         const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
-            return status === 'pending' || status === 'under review';
+            return status === 'pending' || status === 'under review' || status === 'assigned';
           case 'received':
             return status === 'received';
           case 'in-progress':
@@ -119,7 +119,7 @@ function Dashboard({ onNavigateToReport }) {
         const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
-            return status === 'pending' || status === 'under review';
+            return status === 'pending' || status === 'under review' || status === 'assigned';
           case 'received':
             return status === 'received';
           case 'in-progress':
@@ -137,7 +137,7 @@ function Dashboard({ onNavigateToReport }) {
         const status = typeof submission.status === 'string' ? submission.status.toLowerCase() : '';
         switch (activeFilter) {
           case 'pending':
-            return status === 'pending' || status === 'under review';
+            return status === 'pending' || status === 'under review' || status === 'assigned';
           case 'received':
             return status === 'received';
           case 'in-progress':
@@ -293,7 +293,8 @@ function Dashboard({ onNavigateToReport }) {
         
         const pendingCount = reportsArray.filter(report => 
           report.status.toLowerCase() === 'pending' || 
-          report.status.toLowerCase() === 'under review'
+          report.status.toLowerCase() === 'under review' ||
+          report.status.toLowerCase() === 'assigned'
         ).length;
         
         const inProgressCount = reportsArray.filter(report => 
@@ -333,14 +334,27 @@ function Dashboard({ onNavigateToReport }) {
               try {
                 let reporterName = 'Anonymous Reporter';
                 
+                console.log('Fetching reporter info for notification:', {
+                  reporterUid: latestReport.reporterUid,
+                  reportId: latestReport.id
+                });
+                
                 if (latestReport.reporterUid) {
                   const reporterRef = ref(db, `civilian/civilian account/${latestReport.reporterUid}`);
                   const reporterSnapshot = await get(reporterRef);
                   
                   if (reporterSnapshot.exists()) {
                     const reporterData = reporterSnapshot.val();
-                    reporterName = `${reporterData.firstName || ''} ${reporterData.lastName || ''}`.trim() || 'Anonymous Reporter';
+                    console.log('Reporter data found for notification:', reporterData);
+                    const firstName = reporterData.firstName || '';
+                    const lastName = reporterData.lastName || '';
+                    reporterName = `${firstName} ${lastName}`.trim() || 'Anonymous Reporter';
+                    console.log('Reporter name set to:', reporterName);
+                  } else {
+                    console.log('No reporter account found for UID:', latestReport.reporterUid);
                   }
+                } else {
+                  console.log('No reporter UID available for report:', latestReport.id);
                 }
                 
                 // Show notification for new report with reporter info
@@ -660,21 +674,32 @@ function Dashboard({ onNavigateToReport }) {
       }
       
       if (report.reporterUid) {
+        console.log('Fetching civilian info for call:', report.reporterUid);
         // Get civilian reporter info from their account
         const civilianRef = ref(db, `civilian/civilian account/${report.reporterUid}`);
         const civilianSnapshot = await get(civilianRef);
         
         if (civilianSnapshot.exists()) {
           const civilianData = civilianSnapshot.val();
+          console.log('Civilian data found for call:', civilianData);
+          const firstName = civilianData.firstName || '';
+          const lastName = civilianData.lastName || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          
           targetUser = {
             id: report.reporterUid,
-            name: `${civilianData.firstName || ''} ${civilianData.lastName || ''}`.trim() || 'Anonymous Reporter',
+            name: fullName || 'Anonymous Reporter',
             email: civilianData.email || 'Not available',
             type: 'civilian',
             isOnline: civilianData.isOnline || false,
             lastSeen: civilianData.lastSeen || null
           };
+          console.log('Target user set for call:', targetUser);
+        } else {
+          console.log('No civilian account found for UID:', report.reporterUid);
         }
+      } else {
+        console.log('No reporter UID available for call');
       }
       
       // If no reporter UID or civilian account found, show error
@@ -1188,18 +1213,16 @@ function Dashboard({ onNavigateToReport }) {
                               </svg>
                               View
                             </button>
-                            {!isResolved(submission.status) && (
-                              <button 
-                                className="action-btn action-btn-update"
-                                onClick={() => handleUpdateStatus(submission)}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                </svg>
-                                Update
-                              </button>
-                            )}
+                            <button 
+                              className="action-btn action-btn-update"
+                              onClick={() => handleUpdateStatus(submission)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                              Update
+                            </button>
                             <button 
                               className="action-btn action-btn-call"
                               onClick={() => handleCallClick(submission)}
@@ -1297,18 +1320,16 @@ function Dashboard({ onNavigateToReport }) {
                               </svg>
                               View
                             </button>
-                            {!isResolved(submission.status) && (
-                              <button 
-                                className="action-btn action-btn-update"
-                                onClick={() => handleUpdateStatus(submission)}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                </svg>
-                                Update
-                              </button>
-                            )}
+                            <button 
+                              className="action-btn action-btn-update"
+                              onClick={() => handleUpdateStatus(submission)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                              Update
+                            </button>
                             <button 
                               className="action-btn action-btn-call"
                               onClick={() => handleCallClick(submission)}
@@ -1606,6 +1627,17 @@ function Dashboard({ onNavigateToReport }) {
                 disabled={updating}
               >
                 In Progress
+              </button>
+              <button 
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                  ['Resolved','Case Resolved'].includes(selectedReport?.status) 
+                    ? 'bg-black text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => updateReportStatus('Case Resolved')}
+                disabled={updating}
+              >
+                Case Resolved
               </button>
             </div>
             
