@@ -59,22 +59,40 @@ function Dashboard({ onNavigateToReport }) {
   const alarmAudioRef = useRef(null);
   
 
+  // Helper function to get severity as string
+  const getSeverityString = (severity) => {
+    if (typeof severity === 'string') {
+      return severity.toLowerCase();
+    }
+    if (typeof severity === 'number') {
+      // Convert numeric severity to string
+      switch (severity) {
+        case 1: return 'immediate';
+        case 2: return 'high';
+        case 3: return 'moderate';
+        case 4: return 'low';
+        default: return 'moderate';
+      }
+    }
+    return 'moderate'; // Default fallback
+  };
+
   // Filter reports by severity levels
   const immediateSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'immediate' || 
-    submission.type.toLowerCase() === 'emergency sos' // Emergency SOS is always immediate severity
+    getSeverityString(submission.severity) === 'immediate' || 
+    submission.type?.toLowerCase() === 'emergency sos' // Emergency SOS is always immediate severity
   );
 
   const highSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'high'
+    getSeverityString(submission.severity) === 'high'
   );
 
   const moderateSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'moderate'
+    getSeverityString(submission.severity) === 'moderate'
   );
 
   const lowSeverityReports = recentSubmissions.filter(submission => 
-    submission.severity?.toLowerCase() === 'low'
+    getSeverityString(submission.severity) === 'low'
   );
 
   // Filter severity reports based on active filter
@@ -1032,7 +1050,7 @@ function Dashboard({ onNavigateToReport }) {
                   <div className="flex justify-between">
                     <span className="font-medium">Severity:</span>
                     <span className="font-bold">
-                      {newReportNotification.severity?.toUpperCase() || 'UNKNOWN'}
+                      {getSeverityString(newReportNotification.severity)?.toUpperCase() || 'UNKNOWN'}
                     </span>
                   </div>
                 </div>
@@ -1755,7 +1773,3 @@ function Dashboard({ onNavigateToReport }) {
 }
 
 export default Dashboard
-
-
-
-
