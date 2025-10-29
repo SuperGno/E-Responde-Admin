@@ -4,6 +4,7 @@ import { getDatabase, ref, onValue, off, update, get, push, set } from 'firebase
 import { app, iceServers } from '../firebase'
 import { useAuth } from '../providers/AuthProvider'
 import StatusTag from './StatusTag'
+import ThreatDetectionService from '../services/threatDetection'
 import './Dashboard.css'
 
 function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
@@ -22,6 +23,12 @@ function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
   const [error, setError] = useState(null);
   const [highlightedReportId, setHighlightedReportId] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
+  
+  // Threat Detection State
+  const [threatDetectionService] = useState(() => new ThreatDetectionService());
+  const [threatAnalysisResults, setThreatAnalysisResults] = useState([]);
+  const [isAnalyzingThreats, setIsAnalyzingThreats] = useState(false);
+  const [escalatedReports, setEscalatedReports] = useState([]);
   
   // Filter Smart Watch SoS alerts based on active filter
   const filteredSmartWatchSOS = activeFilter 
@@ -84,22 +91,62 @@ function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
   
 
   // Filter reports by severity levels
-  const immediateSeverityReports = recentSubmissions.filter(submission => 
-    (typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'immediate') || 
-    (typeof submission.type === 'string' && submission.type.toLowerCase() === 'emergency sos') // Emergency SOS is always immediate severity
-  );
+  const immediateSeverityReports = recentSubmissions.filter(submission => {
+    const isImmediate = typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'immediate';
+    const isEmergencySOS = typeof submission.type === 'string' && submission.type.toLowerCase() === 'emergency sos';
+    const isThreatDetected = submission.threatDetected === true;
+    const isAiEscalated = submission.aiEscalated === true;
+    
+    const shouldInclude = isImmediate || isEmergencySOS || isThreatDetected || isAiEscalated;
+    
+    if (shouldInclude) {
+      console.log(`Including in immediate severity:`, {
+        id: submission.id,
+        type: submission.type,
+        severity: submission.severity,
+        threatDetected: submission.threatDetected,
+        aiEscalated: submission.aiEscalated,
+        reason: isImmediate ? 'immediate severity' : 
+                isEmergencySOS ? 'emergency sos' : 
+                isThreatDetected ? 'threat detected' : 
+                isAiEscalated ? 'ai escalated' : 'unknown'
+      });
+    }
+    
+    return shouldInclude;
+  });
 
   const highSeverityReports = recentSubmissions.filter(submission => 
-    typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'high'
+    typeof submission.severity === 'string' && 
+    submission.severity.toLowerCase() === 'high' &&
+    !submission.threatDetected && // Exclude AI-detected threats
+    !submission.aiEscalated // Exclude AI-escalated reports
   );
 
   const moderateSeverityReports = recentSubmissions.filter(submission => 
-    typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'moderate'
+    typeof submission.severity === 'string' && 
+    submission.severity.toLowerCase() === 'moderate' &&
+    !submission.threatDetected && // Exclude AI-detected threats
+    !submission.aiEscalated // Exclude AI-escalated reports
   );
 
   const lowSeverityReports = recentSubmissions.filter(submission => 
-    typeof submission.severity === 'string' && submission.severity.toLowerCase() === 'low'
+    typeof submission.severity === 'string' && 
+    submission.severity.toLowerCase() === 'low' &&
+    !submission.threatDetected && // Exclude AI-detected threats
+    !submission.aiEscalated // Exclude AI-escalated reports
   );
+
+  // Debug logging for severity filtering
+  console.log('Severity filtering results:', {
+    totalReports: recentSubmissions.length,
+    immediateSeverity: immediateSeverityReports.length,
+    highSeverity: highSeverityReports.length,
+    moderateSeverity: moderateSeverityReports.length,
+    lowSeverity: lowSeverityReports.length,
+    escalatedReports: escalatedReports.length,
+    threatAnalysisResults: threatAnalysisResults.length
+  });
 
   // Filter severity reports based on active filter
   const filteredImmediateSeverity = activeFilter 
@@ -427,6 +474,9 @@ function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
         setRecentSubmissions(reportsArray);
         setError(null); // Clear any previous errors
         console.log('Reports updated in real-time:', reportsArray.length, 'reports');
+        
+        // Run threat analysis on new reports
+        analyzeReportsForThreats(reportsArray);
       } catch (err) {
         console.error('Error processing real-time data:', err);
         setError(`Failed to process data: ${err.message}`);
@@ -1136,6 +1186,63 @@ function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
     }
   };
 
+  // Threat Analysis Function
+  const analyzeReportsForThreats = async (reports) => {
+    if (!reports || reports.length === 0) return;
+    
+    setIsAnalyzingThreats(true);
+    try {
+      console.log('Starting threat analysis for', reports.length, 'reports...');
+      
+      // Analyze reports for threats
+      const analysisResults = await threatDetectionService.analyzeReports(reports);
+      setThreatAnalysisResults(analysisResults);
+      
+      // Get reports that should be escalated
+      const escalated = threatDetectionService.getEscalatedReports(analysisResults);
+      setEscalatedReports(escalated);
+      
+      // Update report severities in Firebase for escalated reports
+      for (const escalatedReport of escalated) {
+        const report = reports.find(r => r.id === escalatedReport.reportId);
+        if (report && escalatedReport.threatAnalysis.isThreat && escalatedReport.threatAnalysis.confidence > 0.3) {
+          try {
+            const db = getDatabase(app);
+            const reportRef = ref(db, `civilian/civilian crime reports/${report.id}`);
+            
+            // Force escalation to immediate severity regardless of original severity
+            await update(reportRef, {
+              severity: 'immediate',
+              threatDetected: true,
+              threatAnalysis: escalatedReport.threatAnalysis,
+              escalatedAt: new Date().toISOString(),
+              escalatedReason: 'AI threat detection - bypassed user severity',
+              aiEscalated: true,
+              escalationDetails: {
+                threatKeywords: escalatedReport.threatAnalysis.threats || [],
+                confidence: escalatedReport.threatAnalysis.confidence,
+                reason: escalatedReport.threatAnalysis.reason
+              }
+            });
+            
+            console.log(`FORCED ESCALATION: Report ${report.id} from ${report.severity} to immediate severity due to threat detection`);
+            console.log(`Threat details:`, escalatedReport.threatAnalysis);
+            
+          } catch (error) {
+            console.error(`Failed to escalate report ${report.id}:`, error);
+          }
+        }
+      }
+      
+      console.log('Threat analysis completed. Escalated', escalated.length, 'reports');
+      
+    } catch (error) {
+      console.error('Error in threat analysis:', error);
+    } finally {
+      setIsAnalyzingThreats(false);
+    }
+  };
+
   // Debug authentication info
   useEffect(() => {
     if (user && claims) {
@@ -1302,7 +1409,20 @@ function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
         </div>
       </section>
 
-      {/* Immediate Severity Reports Section */}
+      {/* Threat Analysis Status */}
+      {isAnalyzingThreats && (
+        <div className="threat-analysis-status analyzing">
+          <div className="loading-spinner"></div>
+          <span>E-Responde Threat Detection is analyzing reports for threats...</span>
+        </div>
+      )}
+      
+      {escalatedReports.length > 0 && !isAnalyzingThreats && (
+        <div className="threat-analysis-status completed">
+          <span>WARNING</span>
+          <span>E-Responde Threat Detection detected {escalatedReports.length} threat(s) and escalated to immediate severity</span>
+        </div>
+      )}
       {filteredImmediateSeverity.length > 0 && (
         <section className="reports-section immediate-severity-section">
           <div className="reports-section-header immediate-header">
@@ -1333,7 +1453,21 @@ function Dashboard({ onNavigateToReport, onNavigateToSOSAlert }) {
                   ) : (
                     currentImmediateSubmissions.map((submission) => (
                       <tr key={submission.id} className="report-row">
-                        <td className="table-cell table-cell-type">{submission.type}</td>
+                        <td className="table-cell table-cell-type">
+                          <div className="type-container">
+                            {submission.type}
+                            {submission.threatDetected && (
+                              <span className="threat-indicator" title={`AI Threat Detected - Escalated from ${submission.originalSeverity || 'original'} severity`}>
+                                WARNING
+                              </span>
+                            )}
+                            {submission.aiEscalated && (
+                              <span className="ai-escalated-badge" title="AI Escalated Report">
+                                AI
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="table-cell table-cell-description">{truncateDescription(submission.description)}</td>
                         <td className="table-cell table-cell-location">{submission.location}</td>
                         <td className="table-cell table-cell-date">{formatDate(submission.date)}</td>

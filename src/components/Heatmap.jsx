@@ -311,7 +311,7 @@ function Heatmap() {
     return (
       <div className="heatmap-container">
         <div className="loading">
-          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>🗺️</div>
+          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>MAP</div>
           <div>Loading heatmap data...</div>
           <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', opacity: 0.7 }}>
             Connecting to mobile app data...
@@ -325,7 +325,7 @@ function Heatmap() {
     return (
       <div className="heatmap-container">
         <div className="error">
-          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>⚠️</div>
+          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>ERROR</div>
           <div>Error: {error}</div>
           <div style={{ fontSize: '0.9rem', marginTop: '1rem', opacity: 0.8 }}>
             <strong>Troubleshooting:</strong>
@@ -357,7 +357,7 @@ function Heatmap() {
           fontSize: '0.9rem'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <strong style={{ color: '#1e293b', fontSize: '1rem' }}>📊 Real-time Data Status</strong>
+            <strong style={{ color: '#1e293b', fontSize: '1rem' }}>Real-time Data Status</strong>
             {lastUpdate && (
               <small style={{ color: '#6b7280' }}>
                 Last updated: {lastUpdate.toLocaleTimeString()}
@@ -380,7 +380,7 @@ function Heatmap() {
           </div>
           {reports.length === 0 && (
             <div style={{ marginTop: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-              <strong style={{ color: '#92400e' }}>💡 Real-time Connection:</strong> 
+              <strong style={{ color: '#92400e' }}>Real-time Connection:</strong> 
               <p style={{ margin: '0.5rem 0', color: '#92400e' }}>
                 No reports found. The heatmap will automatically update when new crime reports are submitted from the mobile app.
               </p>

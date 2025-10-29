@@ -1,3 +1,14 @@
+/* Threat keyword highlighting styles */
+.threat-keyword-highlight {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: bold;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
 /* Dashboard Styles */
 
 /* Pagination centering fix */
@@ -1469,4 +1480,95 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Threat Detection Indicators */
+.type-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.threat-indicator {
+  background: #dc2626;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+}
+
+.ai-escalated-badge {
+  background: #7c3aed;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  animation: glow 3s infinite;
+  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 8px rgba(124, 58, 237, 0.6);
+  }
+  100% {
+    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(220, 38, 38, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+  }
+}
+
+/* Threat Analysis Status */
+.threat-analysis-status {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.threat-analysis-status.analyzing {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.threat-analysis-status.completed {
+  background: #d1fae5;
+  border-color: #10b981;
+}
+
+.threat-analysis-status.error {
+  background: #fee2e2;
+  border-color: #ef4444;
 }

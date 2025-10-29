@@ -374,7 +374,7 @@ function EmergencyContactsManagement() {
                     </td>
                     <td className="contact-primary">
                       {contact.isPrimary ? (
-                        <span className="primary-indicator">⭐</span>
+                        <span className="primary-indicator">PRIMARY</span>
                       ) : (
                         <span className="secondary-indicator">-</span>
                       )}
